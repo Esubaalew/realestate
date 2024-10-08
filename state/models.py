@@ -50,7 +50,6 @@ class User(AbstractUser):
 
 
 class Property(models.Model):
-    # Property types
     SALE = 'sale'
     RENT = 'rent'
 
@@ -59,16 +58,13 @@ class Property(models.Model):
         (RENT, 'For Rent'),
     ]
 
-
     title = models.CharField(max_length=255)
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     location = models.CharField(max_length=255)
     property_type = models.CharField(max_length=4, choices=PROPERTY_TYPE_CHOICES)
 
-
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='properties')
-
 
     bedrooms = models.IntegerField(default=0)
     bathrooms = models.IntegerField(default=0)
@@ -80,3 +76,12 @@ class Property(models.Model):
 
     class Meta:
         verbose_name_plural = 'Properties'
+
+
+class PropertyImage(models.Model):
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='property_images/')
+    is_preview = models.BooleanField(default=False) 
+
+    def __str__(self):
+        return f"Image for {self.property.title} (Preview: {self.is_preview})"
