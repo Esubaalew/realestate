@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - Real Estate App{% endblock %}
+
+{% block content %}
+    <section class="hero bg-primary text-white text-center py-5">
+        <h1 class="display-4">Welcome to Your Dream Home</h1>
+        <p class="lead">Find your perfect place with us</p>
+    </section>
+
+    <section class="latest-properties py-5">
+        <h2 class="text-center mb-4">Latest Properties</h2>
+        <div class="row">
+        {% for property in properties %}
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-lg border-0">
+                    <img src="{{ property.images.first.image.url }}" class="card-img-top" alt="{{ property.title }}">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ property.title }}</h5>
+                        <p class="card-text">{{ property.description|truncatewords:20 }}</p>
+                        <h6 class="card-subtitle mb-2 text-muted">Price: ${{ property.price }}</h6>
+                        <p class="card-text"><small class="text-muted">Location: {{ property.location }}</small></p>
+{#                        <a href="{% url 'property_detail' property.id %}" class="btn btn-primary" target="_blank">View Details</a>#}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+    </section>
+
+    <section class="agents bg-light py-5">
+        <h2 class="text-center mb-4">Agents</h2>
+        <div class="row">
+        {% for agent in agents %}
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-lg border-0">
+                    <img src="{{ agent.profile_picture.url }}" class="card-img-top" alt="{{ agent.full_name }}">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ agent.full_name }}</h5>
+                        <p class="card-text">{{ agent.company }}</p>
+{#                        <a href="{% url 'agent_detail' agent.id %}" class="btn btn-primary">View Profile</a>#}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+    </section>
+
+    <section class="companies py-5">
+        <h2 class="text-center mb-4">Companies</h2>
+        <div class="row">
+        {% for company in companies %}
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-lg border-0">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ company.full_name }}</h5>
+                        <p class="card-text">Some information about the company.</p>
+{#                        <a href="{% url 'company_detail' company.id %}" class="btn btn-primary">View Company</a>#}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+    </section>
+{% endblock %}
