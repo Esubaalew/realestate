@@ -2,3 +2,4 @@ venv/
 *.sqlite3
 estate/__pycache__/
 media/
+.idea/
