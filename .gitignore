@@ -3,3 +3,4 @@ venv/
 estate/__pycache__/
 media/
 .idea/
+state/static/images/

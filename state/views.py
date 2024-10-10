@@ -1,8 +1,12 @@
-from django.shortcuts import render
-from .models import Property, User
+from rest_framework import viewsets
+from .models import Customer, Property
+from .serializers import CustomerSerializer, PropertySerializer
 
-def home_view(request):
-    latest_properties = Property.objects.filter(is_available=True).order_by('-id')[:5]
-    agents = User.objects.filter(role=User.AGENT)
-    companies = User.objects.filter(role=User.OWNER)
-    return render(request, 'home.html', {'properties': latest_properties, 'agents': agents, 'companies': companies})
+class CustomerViewSet(viewsets.ModelViewSet):
+    queryset = Customer.objects.all()
+    serializer_class = CustomerSerializer
+
+class PropertyViewSet(viewsets.ModelViewSet):
+    queryset = Property.objects.all()
+    serializer_class = PropertySerializer
+
