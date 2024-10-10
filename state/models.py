@@ -23,6 +23,10 @@ class User(AbstractUser):
     legal_document = models.FileField(upload_to='legal_documents/', blank=True, null=True)
     profile_complete = models.BooleanField(default=False)
 
+    # Override inherited fields
+    first_name = None
+    last_name = None
+
     # Adding related_name to avoid clashes
     groups = models.ManyToManyField(
         'auth.Group',
