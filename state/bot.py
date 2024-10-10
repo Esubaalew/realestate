@@ -11,7 +11,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Start command"""
-    await update.message.reply_text("Hey Welcome!!")
+    await update.message.reply_text("Hey MAN!!")
 
 
 async def bot_tele(text):
