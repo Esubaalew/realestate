@@ -22,7 +22,6 @@ async def bot_tele(text):
 
     # Register handlers
     application.add_handler(CommandHandler("start", start))
-    application.run_polling()
 
     # Start application
     await application.bot.set_webhook(url=os.getenv('webhook'))
