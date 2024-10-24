@@ -32,6 +32,8 @@ ALLOWED_HOSTS = ['.vercel.app', '.4gmobiles.com', 'localhost', ]
 # Application definition
 
 INSTALLED_APPS = [
+    "unfold",
+    "unfold.contrib.filters",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
