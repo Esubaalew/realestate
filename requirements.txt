@@ -2,3 +2,5 @@ Django==5.1.1
 python-telegram-bot==21.6
 djangorestframework~=3.15.2
 whitenoise==5.3.0
+django-unfold
+requests~=2.32.3

@@ -8,11 +8,11 @@ class Customer(models.Model):
         ('owner', 'Owner'),
     ]
 
-    telegram_id = models.CharField(max_length=255, unique=True)
+    telegram_id = models.CharField(max_length=255, unique=True, primary_key=True)
     full_name = models.CharField(max_length=255)
-    email = models.EmailField(unique=True)
-    phone_number = models.CharField(max_length=20)
-    address = models.TextField()
+    email = models.EmailField(unique=True, null=True, blank=True)
+    phone_number = models.CharField(max_length=20, null=True, blank=True)
+    address = models.TextField(default='Addis Ababa, Ethiopia')
     user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES, default='user')
     is_verified = models.BooleanField(default=False)
     legal_document = models.FileField(upload_to='legal_documents/', null=True, blank=True)
