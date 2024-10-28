@@ -24,6 +24,22 @@
                             <span class="badge bg-warning text-dark">Not Verified</span>
                         {% endif %}
                     </p>
+
+                    {% if full_name %}
+                        <p><strong>Full Name:</strong> {{ full_name }}</p>
+                    {% endif %}
+
+                    {% if email %}
+                        <p><strong>Email:</strong> {{ email }}</p>
+                    {% endif %}
+
+                    {% if phone_number %}
+                        <p><strong>Phone Number:</strong> {{ phone_number }}</p>
+                    {% endif %}
+
+                    {% if address %}
+                        <p><strong>Address:</strong> {{ address }}</p>
+                    {% endif %}
                 </div>
 
                 <form method="POST" class="mt-4">

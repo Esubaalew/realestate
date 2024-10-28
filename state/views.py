@@ -1,11 +1,12 @@
+from django.urls import reverse
 from rest_framework import viewsets
 from .models import Customer, Property
 from .serializers import CustomerSerializer, PropertySerializer
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, get_object_or_404
 import logging
 import asyncio
 import json
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
 from .bot import bot_tele
 
@@ -34,11 +35,11 @@ class PropertyViewSet(viewsets.ModelViewSet):
     serializer_class = PropertySerializer
 
 
+@csrf_exempt
 def profile(request):
     # Get the start parameter from the URL
     start_param = request.GET.get('tgWebAppStartParam', '')
     telegram_id = start_param.replace('edit-', '')
-
 
     user = get_object_or_404(Customer, telegram_id=telegram_id)
 
@@ -47,10 +48,11 @@ def profile(request):
         user.email = request.POST.get('email')
         user.phone_number = request.POST.get('phone_number')
         user.address = request.POST.get('address')
-        user.is_verified = request.POST.get('is_verified') == 'False'
+        user.is_verified = False
         user.save()
 
-        return redirect('profile')
+        url = f"{reverse('profile')}?tgWebAppStartParam=edit-{telegram_id}"
+        return HttpResponseRedirect(url)
 
     # Render the profile template with user data
     return render(request, 'profile.html', {
@@ -61,3 +63,4 @@ def profile(request):
         'address': user.address,
         'is_verified': user.is_verified,
     })
+
