@@ -47,7 +47,7 @@ def profile(request):
         user.email = request.POST.get('email')
         user.phone_number = request.POST.get('phone_number')
         user.address = request.POST.get('address')
-        user.is_verified = request.POST.get('is_verified') == 'True'  # Adjusted to correctly convert to boolean
+        user.is_verified = request.POST.get('is_verified') == 'False'
         user.save()
 
         return redirect('profile')
