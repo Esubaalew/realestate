@@ -11,5 +11,7 @@ router.register(r'properties', PropertyViewSet)
 urlpatterns = [
 path('api/', include(router.urls)),
 path("", views.index),
+path("user/", views.profile, name="profile"),
+
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
