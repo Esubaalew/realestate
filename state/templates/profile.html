@@ -38,13 +38,9 @@
                         <p><strong>Full Name:</strong> {{ full_name }}</p>
                     {% endif %}
 
-                    {% if email %}
-                        <p><strong>Email:</strong> {{ email }}</p>
-                    {% endif %}
+                    <p><strong>Email:</strong> <span>{{ email|default:"" }}</span></p>
 
-                    {% if phone_number %}
-                        <p><strong>Phone Number:</strong> {{ phone_number }}</p>
-                    {% endif %}
+                    <p><strong>Phone Number:</strong> <span>{{ phone_number|default:"" }}</span></p>
 
                     {% if address %}
                         <p><strong>Address:</strong> {{ address }}</p>
@@ -66,12 +62,12 @@
 
                     <div class="mb-3">
                         <label for="email" class="form-label"><i class="fas fa-envelope me-2"></i>Email (Optional)</label>
-                        <input type="email" class="form-control" id="email" name="email" value="{{ email }}">
+                        <input type="email" class="form-control" id="email" name="email" value="{{ email|default:"" }}">
                     </div>
 
                     <div class="mb-3">
                         <label for="phone_number" class="form-label"><i class="fas fa-phone me-2"></i>Phone Number</label>
-                        <input type="text" class="form-control" id="phone_number" name="phone_number" value="{{ phone_number }}">
+                        <input type="text" class="form-control" id="phone_number" name="phone_number" value="{{ phone_number|default:"" }}">
                     </div>
 
                     <div class="mb-3">
@@ -79,23 +75,19 @@
                         <textarea class="form-control" id="address" name="address" rows="3">{{ address }}</textarea>
                     </div>
 
-                    {% if user_type == "user" %}
-                        <div class="mb-3">
-                            <label for="user_type" class="form-label"><i class="fas fa-users me-2"></i>User Type</label>
-                            <select class="form-control" id="user_type" name="user_type">
-                                <option value="user" {% if user_type == "user" %}selected{% endif %}>User</option>
-                                <option value="agent" {% if user_type == "agent" %}selected{% endif %}>Agent</option>
-                                <option value="owner" {% if user_type == "owner" %}selected{% endif %}>Owner</option>
-                            </select>
-                        </div>
-                    {% endif %}
+                    <div class="mb-3">
+                        <label for="user_type" class="form-label"><i class="fas fa-users me-2"></i>User Type</label>
+                        <select class="form-control" id="user_type" name="user_type">
+                            <option value="user" {% if user_type == "user" %}selected{% endif %}>User</option>
+                            <option value="agent" {% if user_type == "agent" %}selected{% endif %}>Agent</option>
+                            <option value="owner" {% if user_type == "owner" %}selected{% endif %}>Owner</option>
+                        </select>
+                    </div>
 
-                    {% if user_type == "owner" %}
-                        <div class="mb-3">
-                            <label for="legal_document" class="form-label"><i class="fas fa-file-alt me-2"></i>Legal Document</label>
-                            <input type="file" class="form-control" id="legal_document" name="legal_document">
-                        </div>
-                    {% endif %}
+                    <div class="mb-3" id="legal_document_container" style="display: none;">
+                        <label for="legal_document" class="form-label"><i class="fas fa-file-alt me-2"></i>Legal Document</label>
+                        <input type="file" class="form-control" id="legal_document" name="legal_document">
+                    </div>
 
                     <button type="submit" class="btn btn-primary btn-lg w-100"><i class="fas fa-save me-2"></i>Save Changes</button>
                 </form>
@@ -123,6 +115,15 @@
 </div>
 
 <script>
+    document.getElementById("user_type").addEventListener("change", function() {
+        const legalDocumentContainer = document.getElementById("legal_document_container");
+        if (this.value === "owner") {
+            legalDocumentContainer.style.display = "block";
+        } else {
+            legalDocumentContainer.style.display = "none";
+        }
+    });
+
     document.getElementById("profileForm").addEventListener("submit", function(event) {
         const fullNameField = document.getElementById("full_name");
         const userType = "{{ user_type }}";
@@ -154,5 +155,8 @@
             validationModal.show();
         }
     });
+
+    // Optional: Trigger change event on page load to set initial state
+    document.getElementById("user_type").dispatchEvent(new Event("change"));
 </script>
 {% endblock %}
