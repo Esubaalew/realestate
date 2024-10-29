@@ -6,7 +6,7 @@ from telegram.ext import (
 import os
 import logging
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from state.tools import register_user, is_user_registered
+from state.tools import register_user, is_user_registered, get_user_details
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -16,14 +16,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     telegram_id = str(update.message.from_user.id)
     full_name = update.message.from_user.full_name
 
-    # Check if user is already registered
+
     if is_user_registered(telegram_id):
         await update.message.reply_text(f"Welcome back, {full_name}!")
     else:
-        # Call the registration function
+
         result = register_user(telegram_id, full_name)
 
-        # Send response based on registration outcome
+
         if result["success"]:
             await update.message.reply_text(result["message"])
         else:
@@ -34,7 +34,7 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Profile command to generate a link to edit user profile."""
     telegram_id = str(update.message.from_user.id)
 
-    # Generate the link to the web app (corrected the URL)
+
     web_app_url = f"https://t.me/RealestateRo_Bot/state?startapp=edit-{telegram_id}"
 
     await update.message.reply_text(
@@ -42,6 +42,31 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Edit Profile", url=web_app_url)]])
     )
 
+
+async def addproperty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Add property command to check if the user can add properties."""
+    telegram_id = str(update.message.from_user.id)
+
+
+    user_details = get_user_details(telegram_id)
+
+    if not user_details:
+        await update.message.reply_text("Could not retrieve your details. Please make sure you're registered.")
+        return
+
+    user_type = user_details.get("user_type")
+
+
+    if user_type == 'user':
+        await update.message.reply_text(
+            "You can only buy or sell properties. To add your own property, please upgrade your account to either Agent or Company."
+        )
+    elif user_type in ['agent', 'company']:
+        await update.message.reply_text(
+            "You can add properties soon. This feature will be available shortly!"
+        )
+    else:
+        await update.message.reply_text("User type not recognized. Please contact support.")
 
 
 async def bot_tele(text):
@@ -53,6 +78,7 @@ async def bot_tele(text):
     # Register handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("profile", profile))
+    application.add_handler(CommandHandler("addproperty", addproperty))
 
     # Start application
     await application.bot.set_webhook(url=os.getenv('webhook'))

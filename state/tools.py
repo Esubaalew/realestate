@@ -1,3 +1,4 @@
+from typing import Any
 import requests
 
 API_URL = "https://estate.4gmobiles.com/api/customers/"
@@ -16,3 +17,10 @@ def is_user_registered(telegram_id: str) -> bool:
     """Check if the user is already registered."""
     response = requests.get(f"{API_URL}{telegram_id}/")
     return response.status_code == 200
+
+def get_user_details(telegram_id: str) -> Any | None:
+    """Fetch user details by Telegram ID."""
+    response = requests.get(f"{API_URL}{telegram_id}/")
+    if response.status_code == 200:
+        return response.json()
+    return None
