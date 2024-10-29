@@ -14,9 +14,18 @@
         <div class="card">
             <div class="card-body">
                 <h3 class="card-title mb-4">Your Information</h3>
+
+                <!-- Display error message if available -->
+                {% if error %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ error }}
+                    </div>
+                {% endif %}
+
                 <div class="alert alert-info" role="alert">
                     <h5 class="alert-heading">Available Data:</h5>
                     <p><strong>Telegram ID:</strong> <span class="badge bg-secondary">{{ telegram_id }}</span></p>
+                    <p><strong>User Type:</strong> <span class="badge bg-primary">{{ user_type }}</span></p>
                     <p><strong>Verification Status:</strong>
                         {% if is_verified %}
                             <span class="badge bg-success">Verified</span>
@@ -40,9 +49,13 @@
                     {% if address %}
                         <p><strong>Address:</strong> {{ address }}</p>
                     {% endif %}
+
+                    {% if legal_document %}
+                        <p><strong>Legal Document:</strong> Received</p>
+                    {% endif %}
                 </div>
 
-                <form method="POST" class="mt-4">
+                <form method="POST" enctype="multipart/form-data" class="mt-4" id="profileForm">
                     {% csrf_token %}
                     <input type="hidden" name="telegram_id" value="{{ telegram_id }}">
 
@@ -52,8 +65,8 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="email" class="form-label"><i class="fas fa-envelope me-2"></i>Email</label>
-                        <input type="email" class="form-control" id="email" name="email" value="{{ email }}" required>
+                        <label for="email" class="form-label"><i class="fas fa-envelope me-2"></i>Email (Optional)</label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ email }}">
                     </div>
 
                     <div class="mb-3">
@@ -66,7 +79,23 @@
                         <textarea class="form-control" id="address" name="address" rows="3">{{ address }}</textarea>
                     </div>
 
-                    <input type="hidden" name="is_verified" value="{{ is_verified }}">
+                    {% if user_type == "user" %}
+                        <div class="mb-3">
+                            <label for="user_type" class="form-label"><i class="fas fa-users me-2"></i>User Type</label>
+                            <select class="form-control" id="user_type" name="user_type">
+                                <option value="user" {% if user_type == "user" %}selected{% endif %}>User</option>
+                                <option value="agent" {% if user_type == "agent" %}selected{% endif %}>Agent</option>
+                                <option value="owner" {% if user_type == "owner" %}selected{% endif %}>Owner</option>
+                            </select>
+                        </div>
+                    {% endif %}
+
+                    {% if user_type == "owner" %}
+                        <div class="mb-3">
+                            <label for="legal_document" class="form-label"><i class="fas fa-file-alt me-2"></i>Legal Document</label>
+                            <input type="file" class="form-control" id="legal_document" name="legal_document">
+                        </div>
+                    {% endif %}
 
                     <button type="submit" class="btn btn-primary btn-lg w-100"><i class="fas fa-save me-2"></i>Save Changes</button>
                 </form>
@@ -74,4 +103,56 @@
         </div>
     </div>
 </div>
+
+<!-- Modal for Validation Messages -->
+<div class="modal fade" id="validationModal" tabindex="-1" aria-labelledby="validationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="validationModalLabel">Validation Error</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="modalMessage">
+                <!-- Error message will be inserted here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById("profileForm").addEventListener("submit", function(event) {
+        const fullNameField = document.getElementById("full_name");
+        const userType = "{{ user_type }}";
+        const phoneField = document.getElementById("phone_number");
+        const documentField = document.getElementById("legal_document");
+        let errorMessage = '';
+
+        // Validate Full Name (required for all)
+        if (!fullNameField.value.trim()) {
+            errorMessage = "Full Name cannot be empty.";
+        }
+        // Additional validation for specific user types
+        else if (userType === "agent" && !phoneField.value.trim()) {
+            errorMessage = "Phone Number is required for agents.";
+        } else if (userType === "owner") {
+            if (!phoneField.value.trim()) {
+                errorMessage = "Phone Number is required for owners.";
+            }
+            if (!documentField || !documentField.value.trim()) {
+                errorMessage = "Legal Document is required for owners.";
+            }
+        }
+
+        // If there's an error message, prevent form submission and show the modal
+        if (errorMessage) {
+            event.preventDefault();
+            document.getElementById("modalMessage").innerText = errorMessage;
+            const validationModal = new bootstrap.Modal(document.getElementById("validationModal"));
+            validationModal.show();
+        }
+    });
+</script>
 {% endblock %}
