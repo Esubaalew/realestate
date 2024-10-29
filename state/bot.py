@@ -2,14 +2,16 @@ from telegram.ext import (
     Application,
     CommandHandler,
     ContextTypes,
-    CallbackQueryHandler,
+    # Removed CallbackQueryHandler
 )
 import os
 import logging
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from state.tools import register_user, is_user_registered, get_user_details, upgrade_user
 
+# Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 # Start command
@@ -18,25 +20,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     telegram_id = str(update.message.from_user.id)
     full_name = update.message.from_user.full_name
 
-
     if is_user_registered(telegram_id):
         await update.message.reply_text(f"Welcome back, {full_name}! Use /profile to view or edit your profile.")
     else:
-
         result = register_user(telegram_id, full_name)
-
-
-        if result["success"]:
-            await update.message.reply_text(result["message"])
-        else:
-            await update.message.reply_text(result["message"])
+        await update.message.reply_text(result["message"])
 
 
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Profile command to generate a link to edit user profile."""
     telegram_id = str(update.message.from_user.id)
-
-
     web_app_url = f"https://t.me/RealestateRo_Bot/state?startapp=edit-{telegram_id}"
 
     await update.message.reply_text(
@@ -70,56 +62,49 @@ async def addproperty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 
 async def upgrade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Command to handle user upgrade."""
     telegram_id = str(update.message.from_user.id)
+    user_details = get_user_details(telegram_id)
+
+    if not user_details:
+        await update.message.reply_text(
+            "Could not retrieve your details. Please make sure you're registered using /start.")
+        return
+
+    user_type = user_details.get("user_type")
+
+    if user_type in ['agent', 'owner']:
+        await update.message.reply_text(
+            "You are already upgraded to your current account type. Use /profile to manage your account."
+        )
+    elif user_type == 'user':
+        web_app_url = f"https://t.me/RealestateRo_Bot/state?startapp=edit-{telegram_id}"
+        await update.message.reply_text(
+            "Account upgrades are irreversible. To upgrade your account, please visit your profile:",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Edit Profile", url=web_app_url)]])
+        )
 
 
-    keyboard = [
-        [InlineKeyboardButton("Upgrade to Agent", callback_data='upgrade_agent')],
-        [InlineKeyboardButton("Upgrade to Owner", callback_data='upgrade_owner')]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await update.message.reply_text(
-        "Choose your new account type to unlock additional features, such as adding properties:",
-        reply_markup=reply_markup)
-
-
-async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handles callback data for upgrading the account."""
-    query = update.callback_query
-    await query.answer()
-
-    telegram_id = str(query.from_user.id)
-
-    new_user_type = "agent" if query.data == "upgrade_agent" else "owner"
-
-
-    result = upgrade_user(telegram_id, new_user_type)
-
-
-    await query.edit_message_text(
-        f"{result['message']} You can now use /addproperty to add properties to the platform.")
-
-
+# Main bot function
 async def bot_tele(text):
-    # Create application
-    application = (
-        Application.builder().token(os.getenv('TOKEN')).build()
-    )
+    application = Application.builder().token(os.getenv('TOKEN')).build()
 
-    # Register handlers
+    logger.info(f"Bot token: {os.getenv('TOKEN')}")
+
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("profile", profile))
-    application.add_handler(CommandHandler("addproperty", addproperty))
+    application.add_handler(CommandHandler("addproperty", addproperty))  # Add this line back
     application.add_handler(CommandHandler("upgrade", upgrade))
-    application.add_handler(CallbackQueryHandler(button_callback))
 
-    # Start application
-    await application.bot.set_webhook(url=os.getenv('webhook'))
+    webhook_url = os.getenv('webhook')
+    logger.info(f"Setting webhook to: {webhook_url}")
+    await application.bot.set_webhook(url=webhook_url)
+
     await application.update_queue.put(
         Update.de_json(data=text, bot=application.bot)
     )
+
     async with application:
         await application.start()
         await application.stop()
+
+    logger.info("Bot has started and stopped successfully.")

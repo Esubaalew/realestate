@@ -28,7 +28,7 @@ def get_user_details(telegram_id: str) -> Any | None:
 
 def upgrade_user(telegram_id: str, new_user_type: str) -> dict:
     """Upgrade the user's account to 'agent' or 'owner'."""
-    url = f"{API_URL}{telegram_id}/"  # Format URL with telegram_id
+    url = f"{API_URL}{telegram_id}/"
 
 
     data = {
