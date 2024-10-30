@@ -45,7 +45,14 @@ class PropertyViewSet(viewsets.ModelViewSet):
 def profile(request):
     start_param = request.GET.get('tgWebAppStartParam', '')
     telegram_id = start_param.replace('edit-', '')
+
+    # Check if telegram_id ends with '!'
+    redirect_condition = telegram_id.endswith('!')
+    if redirect_condition:
+        telegram_id = telegram_id[:-1]  # Remove '!' from the ID
+
     user = get_object_or_404(Customer, telegram_id=telegram_id)
+    logger.info(f"tgWebAppStartParam: {start_param}, redirect_condition: {redirect_condition}")
 
     if request.method == 'POST':
         full_name = request.POST.get('full_name')
@@ -81,7 +88,14 @@ def profile(request):
 
         user.save()
 
-        return HttpResponseRedirect(reverse('profile') + f"?tgWebAppStartParam=edit-{telegram_id}")
+        # Check if we should redirect to add_property
+        if redirect_condition:
+            redirect_url = reverse('add_property') + f"?telegram_id={telegram_id}"
+            logger.info(f"Redirecting to: {redirect_url}")  # Logging the redirect URL
+            return HttpResponseRedirect(redirect_url)
+
+        # If no redirect condition met, redirect to profile
+        return HttpResponseRedirect(reverse('profile') + f"?tgWebAppStartParam={start_param}")
 
     # Render the profile template with user data
     return render_profile(request, user)
@@ -112,9 +126,6 @@ def render_profile(request, user):
         'user_type': user.user_type,
         'legal_document': user.legal_document,
     })
-
-
-
 
 
 @csrf_exempt
@@ -168,5 +179,19 @@ def add_property(request):
         return redirect('property_success')  # Redirect to success page
 
     return render(request, 'property_form.html')
+
+
+@csrf_exempt
+def my_properties(request):
+    telegram_id = request.GET.get('telegram_id')
+    owner = get_object_or_404(Customer, telegram_id=telegram_id)
+    # Get the properties added by the owner
+    properties = Property.objects.filter(owner=owner)
+
+    context = {
+        'properties': properties,
+        'owner': owner,
+    }
+    return render(request, 'my_properties.html', context)
 
 

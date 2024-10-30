@@ -1,7 +1,27 @@
-<!-- success.html -->
 {% extends "base.html" %}
 
+{% block title %}Property Added Successfully | Real Estate App{% endblock %}
+
 {% block content %}
-<h2>Property Added Successfully!</h2>
-<p>Your property has been added to the listing. </p>
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center p-5">
+                    <i class="fas fa-check-circle text-success fa-5x mb-4"></i>
+                    <h2 class="card-title mb-4">Property Added Successfully!</h2>
+                    <p class="card-text lead mb-4">Your property has been added to the listing and is now visible to potential buyers or renters.</p>
+                    <a href="/my-properties?telegram_id={{ telegram_id }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-list-ul me-2"></i>View My Properties
+                    </a>
+                </div>
+            </div>
+            <div class="text-center mt-4">
+                <a href="{% url 'add_property' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-plus me-2"></i>Add Another Property
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
