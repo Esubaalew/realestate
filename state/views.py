@@ -9,6 +9,7 @@ from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from .bot import bot_tele
+from django.contrib import messages
 
 from django.http import HttpResponseRedirect
 
@@ -111,4 +112,61 @@ def render_profile(request, user):
         'user_type': user.user_type,
         'legal_document': user.legal_document,
     })
+
+
+
+
+
+@csrf_exempt
+def add_property(request):
+    if request.method == 'POST':
+        # Extract data from POST request
+        telegram_id = request.GET.get('telegram_id')  # Get telegram ID from the URL
+        owner = get_object_or_404(Customer, telegram_id=telegram_id)  # Retrieve the owner
+
+        data = {
+            'owner': owner,  # Set the owner from the retrieved Customer instance
+            'name': request.POST.get('name'),
+            'for_property': request.POST.get('for_property'),
+            'type_property': request.POST.get('type_property'),
+            'usage': request.POST.get('usage'),  # Include usage
+            'country': request.POST.get('country'),  # Include country
+            'region': request.POST.get('region'),  # Include region
+            'city': request.POST.get('city'),  # Include city
+            'subcity_zone': request.POST.get('subcity_zone'),  # Include subcity zone
+            'woreda': request.POST.get('woreda'),  # Include woreda
+            'address': request.POST.get('address'),  # Include address
+            'floor_level': request.POST.get('floor_level'),  # Include floor level
+            'total_area': request.POST.get('total_area'),
+            'area': request.POST.get('area'),
+            'google_map_link': request.POST.get('google_map_link'),
+            'living_rooms': request.POST.get('living_rooms'),
+            'bedrooms': request.POST.get('bedrooms'),
+            'bathrooms': request.POST.get('bathrooms'),
+            'kitchens': request.POST.get('kitchens'),  # Include kitchens
+            'built_date': request.POST.get('built_date'),  # Include built date
+            'number_of_balconies': request.POST.get('number_of_balconies'),  # Include balconies
+            'average_price_per_square_meter': request.POST.get('average_price_per_square_meter'),
+            'selling_price': request.POST.get('selling_price'),
+            'computing_price': request.POST.get('computing_price'),  # Include computing price
+            'monthly_rent': request.POST.get('monthly_rent'),
+            'features_and_amenities': request.POST.get('features_and_amenities'),
+            'heating_type': request.POST.get('heating_type'),  # Include heating type
+            'cooling': request.POST.get('cooling'),  # Include cooling
+            'nearest_residential': request.POST.get('nearest_residential'),
+            'own_description': request.POST.get('own_description'),  # Include own description
+
+            'link_to_video_or_image': request.POST.get('link_to_video_or_image'),  # Include video/image link
+            'ownership_of_property': request.FILES.get('ownership_of_property'),  # Include ownership document
+        }
+
+        # Create Property instance and save
+        property_instance = Property(**data)
+        property_instance.save()
+
+        messages.success(request, "Property added successfully!")
+        return redirect('property_success')  # Redirect to success page
+
+    return render(request, 'property_form.html')
+
 

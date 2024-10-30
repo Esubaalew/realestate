@@ -70,7 +70,6 @@ class Property(models.Model):
     cooling = models.CharField(max_length=20, choices=[('AC', 'AC'), ('electric', 'Electric')])
     nearest_residential = models.TextField()
     own_description = models.TextField()
-    video = models.URLField(max_length=200, null=True, blank=True)
     link_to_video_or_image = models.URLField(max_length=200, null=True, blank=True)
     ownership_of_property = models.FileField(upload_to='ownership_files/')
     status = models.CharField(max_length=10, choices=[('pending', 'Pending'), ('confirmed', 'Confirmed')], default='pending')

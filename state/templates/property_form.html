@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="text-center my-4">Add Property</h2>
+
+<!-- Progress Bar -->
+<div class="container">
+    <div class="progress">
+        <div class="progress-bar" role="progressbar" id="progressBar" style="width: 16.67%;" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+</div>
+
+<form id="propertyForm" method="post" enctype="multipart/form-data" class="mt-4">
+    {% csrf_token %}
+
+    <!-- Step 1: Basic Info -->
+    <div class="form-step" id="step1">
+        <h3>Basic Information</h3>
+        <div class="mb-3">
+            <label class="form-label">Name</label>
+            <input type="text" name="name" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">For Property</label>
+            <select name="for_property" class="form-select" required>
+                <option value="sale">For Sale</option>
+                <option value="rent">For Rent</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Type</label>
+            <select name="type_property" class="form-select" required>
+                <option value="residential">Residential</option>
+                <option value="commercial">Commercial</option>
+                <option value="lease">Lease</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Usage</label>
+            <select name="usage" class="form-select" required>
+                <option value="office">For Office</option>
+                <option value="shop">For Shop</option>
+                <option value="restaurant">For Restaurant</option>
+            </select>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="nextStep()">Next</button>
+    </div>
+
+    <!-- Step 2: Area and Location -->
+    <div class="form-step" id="step2" style="display: none;">
+        <h3>Area and Location</h3>
+        <div class="mb-3">
+            <label class="form-label">Country</label>
+            <input type="text" name="country" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Region</label>
+            <input type="text" name="region" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">City</label>
+            <input type="text" name="city" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Subcity/Zone</label>
+            <input type="text" name="subcity_zone" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Woreda</label>
+            <input type="text" name="woreda" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Address</label>
+            <input type="text" name="address" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Floor Level</label>
+            <input type="text" name="floor_level" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Total Area</label>
+            <input type="number" name="total_area" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Area</label>
+            <input type="number" name="area" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Google Map Link</label>
+            <input type="url" name="google_map_link" class="form-control" required>
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="prevStep()">Previous</button>
+        <button type="button" class="btn btn-primary" onclick="nextStep()">Next</button>
+    </div>
+
+    <!-- Step 3: Room Details -->
+    <div class="form-step" id="step3" style="display: none;">
+        <h3>Room Details</h3>
+        <div class="mb-3">
+            <label class="form-label">Living Rooms</label>
+            <input type="number" name="living_rooms" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Bedrooms</label>
+            <input type="number" name="bedrooms" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Bathrooms</label>
+            <input type="number" name="bathrooms" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Kitchens</label>
+            <input type="number" name="kitchens" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Built Date</label>
+            <input type="date" name="built_date" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Number of Balconies</label>
+            <input type="number" name="number_of_balconies" class="form-control" required>
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="prevStep()">Previous</button>
+        <button type="button" class="btn btn-primary" onclick="nextStep()">Next</button>
+    </div>
+
+    <!-- Step 4: Pricing -->
+    <div class="form-step" id="step4" style="display: none;">
+        <h3>Pricing</h3>
+        <div class="mb-3">
+            <label class="form-label">Average Price Per Square Meter</label>
+            <input type="number" name="average_price_per_square_meter" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Selling Price</label>
+            <input type="number" name="selling_price" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Computing Price</label>
+            <input type="number" name="computing_price" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Monthly Rent</label>
+            <input type="number" name="monthly_rent" class="form-control" required>
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="prevStep()">Previous</button>
+        <button type="button" class="btn btn-primary" onclick="nextStep()">Next</button>
+    </div>
+
+    <!-- Step 5: Features and Media -->
+    <div class="form-step" id="step5" style="display: none;">
+        <h3>Features and Media</h3>
+        <div class="mb-3">
+            <label class="form-label">Features and Amenities</label>
+            <textarea name="features_and_amenities" class="form-control" required></textarea>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Heating Type</label>
+            <input type="text" name="heating_type" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Cooling</label>
+            <input type="text" name="cooling" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Nearest Residential</label>
+            <input type="text" name="nearest_residential" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Own Description</label>
+            <textarea name="own_description" class="form-control" required></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Link to Video or Image</label>
+            <input type="url" name="link_to_video_or_image" class="form-control">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Ownership Document</label>
+            <input type="file" name="ownership_of_property" class="form-control" required>
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="prevStep()">Previous</button>
+        <button type="submit" class="btn btn-success">Submit</button>
+    </div>
+</form>
+
+<script>
+    let currentStep = 0;
+    const steps = document.querySelectorAll('.form-step');
+    const progressBar = document.getElementById('progressBar');
+
+    function showStep(step) {
+        steps.forEach((s, index) => {
+            s.style.display = index === step ? 'block' : 'none';
+        });
+        updateProgressBar(step);
+    }
+
+    function nextStep() {
+        if (currentStep < steps.length - 1) {
+            currentStep++;
+            showStep(currentStep);
+        }
+    }
+
+    function prevStep() {
+        if (currentStep > 0) {
+            currentStep--;
+            showStep(currentStep);
+        }
+    }
+
+    function updateProgressBar(step) {
+        const progress = ((step + 1) / steps.length) * 100;
+        progressBar.style.width = progress + '%';
+        progressBar.setAttribute('aria-valuenow', progress);
+    }
+
+    // Initial setup
+    showStep(currentStep);
+</script>
+{% endblock %}

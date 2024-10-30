@@ -44,7 +44,8 @@ async def addproperty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     if not user_details:
         await update.message.reply_text(
-            "Could not retrieve your details. Please make sure you're registered using /start.")
+            "Could not retrieve your details. Please make sure you're registered using /start."
+        )
         return
 
     user_type = user_details.get("user_type")
@@ -54,11 +55,14 @@ async def addproperty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             "You can only browse or inquire about properties. To add your own property, please upgrade your account by using /upgrade and choosing the Agent or Company option."
         )
     elif user_type in ['agent', 'owner']:
+        web_app_url = f"https://t.me/RealestateRo_Bot/state?startapp=edit-{telegram_id}&r=property"
         await update.message.reply_text(
-            "You have permission to add properties! This feature will be available shortly, so please stay tuned."
+            "You have permission to add properties! Use the following link to proceed:",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Add Property", url=web_app_url)]])
         )
     else:
         await update.message.reply_text("User type not recognized. Please contact support for assistance.")
+
 
 
 async def upgrade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
