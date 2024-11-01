@@ -92,7 +92,7 @@
                     <!-- Show Add Property button only if user type is owner or agent based on server-side data -->
                     {% if user_type == "owner" or user_type == "agent" %}
                     <div class="mb-3" id="add_property_container" style="display: block;">
-                        <a href="{% url 'add_property' %}?telegram_id={{ telegram_id }}" id="add_property_link" class="btn btn-success btn-lg w-100">
+                        <a href="{% url 'add_property' %}?profile_token={{ profile_token }}" id="add_property_link" class="btn btn-success btn-lg w-100">
                             <i class="fas fa-plus me-2"></i>Add Property
                         </a>
                     </div>
@@ -130,22 +130,20 @@
 </div>
 
 <script>
-    // Store the Telegram ID in local storage when the web app loads
+    // Store the Profile Token in session storage when the web app loads
     window.onload = function() {
-        const telegramId = "{{ telegram_id }}";  // Get the Telegram ID from the template context
-        if (telegramId) {
-            localStorage.setItem("telegram_id", telegramId);  // Store or overwrite the existing ID
+        const profileToken = "{{ profile_token }}"; // Get from view context
+        if (profileToken) {
+            sessionStorage.setItem("profile_token", profileToken);
         }
     };
 
     document.getElementById("user_type").addEventListener("change", function() {
         const legalDocumentContainer = document.getElementById("legal_document_container");
-        const addPropertyContainer = document.getElementById("add_property_container");
-        const telegramId = "{{ telegram_id }}";  // Get the Telegram ID for the link
 
-        // No need to check this on change since button visibility is handled by server-side rendering
-        if (this.value === "owner" || this.value === "agent") {
-            legalDocumentContainer.style.display = this.value === "owner" ? "block" : "none";  // Show legal document for owners only
+        // Show legal document for owners only
+        if (this.value === "owner") {
+            legalDocumentContainer.style.display = "block";
         } else {
             legalDocumentContainer.style.display = "none"; // Hide legal document for other user types
         }
@@ -183,8 +181,9 @@
         }
     });
 
-    // Optional: Trigger change event on page load to set initial state
+    // Trigger change event on page load to set initial state
     document.getElementById("user_type").dispatchEvent(new Event("change"));
 </script>
+
 
 {% endblock %}

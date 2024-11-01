@@ -44,15 +44,10 @@ class PropertyViewSet(viewsets.ModelViewSet):
 @csrf_exempt
 def profile(request):
     start_param = request.GET.get('tgWebAppStartParam', '')
-    telegram_id = start_param.replace('edit-', '')
+    profile_token = start_param.replace('edit-', '')  # Assuming profile_token is in the format 'edit-<token>'
 
-    # Check if telegram_id ends with '!'
-    redirect_condition = telegram_id.endswith('!')
-    if redirect_condition:
-        telegram_id = telegram_id[:-1]  # Remove '!' from the ID
-
-    user = get_object_or_404(Customer, telegram_id=telegram_id)
-    logger.info(f"tgWebAppStartParam: {start_param}, redirect_condition: {redirect_condition}")
+    # Assuming you have a function to fetch user based on profile token
+    user = get_object_or_404(Customer, profile_token=profile_token)  # Fetch user by profile token
 
     if request.method == 'POST':
         full_name = request.POST.get('full_name')
@@ -75,26 +70,21 @@ def profile(request):
         elif user_type == 'agent' and not phone_number:
             return render_profile_with_error(request, user, "Phone Number is required for agents.")
 
-        # Update fields and save
+        # Update user fields
         user.full_name = full_name
         user.email = email
         user.phone_number = phone_number
         user.address = address
-        user.is_verified = False
+        user.is_verified = False  # Assuming this is set to false when profile is updated
         user.user_type = user_type
 
         if legal_document:
             user.legal_document = legal_document
 
+        # Save changes to user
         user.save()
 
-        # Check if we should redirect to add_property
-        if redirect_condition:
-            redirect_url = reverse('add_property') + f"?telegram_id={telegram_id}"
-            logger.info(f"Redirecting to: {redirect_url}")  # Logging the redirect URL
-            return HttpResponseRedirect(redirect_url)
-
-        # If no redirect condition met, redirect to profile
+        # Redirect to profile page with the start parameter
         return HttpResponseRedirect(reverse('profile') + f"?tgWebAppStartParam={start_param}")
 
     # Render the profile template with user data
@@ -112,6 +102,7 @@ def render_profile_with_error(request, user, error):
         'user_type': user.user_type,
         'legal_document': user.legal_document,
         'error': error,
+        'profile_token': user.profile_token,  # Ensure profile token is passed here
     })
 
 
@@ -125,6 +116,7 @@ def render_profile(request, user):
         'is_verified': user.is_verified,
         'user_type': user.user_type,
         'legal_document': user.legal_document,
+        'profile_token': user.profile_token,
     })
 
 
@@ -132,8 +124,13 @@ def render_profile(request, user):
 def add_property(request):
     if request.method == 'POST':
         # Extract data from POST request
-        telegram_id = request.GET.get('telegram_id')  # Get telegram ID from the URL
-        owner = get_object_or_404(Customer, telegram_id=telegram_id)  # Retrieve the owner
+        logger.info(f"GET parameters: {request.GET}")
+        logger.info(f"POST parameters: {request.POST}")
+        profile_token = request.GET.get('profile_token')
+        logging.info(profile_token)
+        print(profile_token)
+
+        owner = get_object_or_404(Customer, profile_token=profile_token)
 
         data = {
             'owner': owner,  # Set the owner from the retrieved Customer instance
@@ -181,17 +178,26 @@ def add_property(request):
     return render(request, 'property_form.html')
 
 
-@csrf_exempt
+@csrf_exempt  # Only if absolutely necessary
 def my_properties(request):
-    telegram_id = request.GET.get('telegram_id')
-    owner = get_object_or_404(Customer, telegram_id=telegram_id)
-    # Get the properties added by the owner
+
+    profile_token = request.GET.get('profile_token')
+
+
+    logger.info(f"Received profile token: {profile_token}")
+
+
+    owner = get_object_or_404(Customer, profile_token=profile_token)
+
+
     properties = Property.objects.filter(owner=owner)
+
 
     context = {
         'properties': properties,
         'owner': owner,
     }
-    return render(request, 'my_properties.html', context)
 
+
+    return render(request, 'my_properties.html', context)
 

@@ -71,7 +71,7 @@
                         <a class="nav-link" href="#"><i class="fas fa-star me-1"></i>Favorites</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/my-properties?telegram_id={{ telegram_id }}"><i class="fas fa-building me-1"></i>My Properties</a>
+                        <a class="nav-link" href="/my-properties?profile_token={{ profile_token }}"><i class="fas fa-building me-1"></i>My Properties</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#"><i class="fas fa-user me-1"></i>Profile</a>
@@ -96,6 +96,18 @@
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
+
+        // Check for Profile Token in session storage
+        const profileToken = sessionStorage.getItem("profile_token");
+        if (!profileToken) {
+            // Handle the case where the token is not found
+            console.error("Profile token is not available in session storage.");
+            // Optionally redirect to the profile page or show an error
+            // window.location.href = "/profile"; // Uncomment if you want to redirect
+        } else {
+            // Use the profile token as needed
+            console.log("Profile Token found:", profileToken);
+        }
     </script>
 </body>
 </html>

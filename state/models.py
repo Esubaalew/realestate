@@ -1,5 +1,5 @@
 from django.db import models
-
+import uuid
 
 class Customer(models.Model):
     USER_TYPE_CHOICES = [
@@ -17,6 +17,7 @@ class Customer(models.Model):
     is_verified = models.BooleanField(default=False)
     legal_document = models.FileField(upload_to='legal_documents/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    profile_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
 
     def __str__(self):
         return self.full_name
