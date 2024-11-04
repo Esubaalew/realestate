@@ -1,10 +1,9 @@
-from telegram.ext import Application, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, filters, \
-    PicklePersistence
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import Application, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, filters, PicklePersistence, CallbackQueryHandler
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 import os
 import logging
-from state.tools import register_user, is_user_registered, get_user_details
 import requests
+from state.tools import register_user, is_user_registered, get_user_details
 
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -16,24 +15,18 @@ persistence = PicklePersistence(filepath='bot_dat')
 # Define states for the conversation flow
 FULL_NAME, PHONE_NUMBER, TOUR_DATE, TOUR_TIME = range(4)
 
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Start command with optional deep-linking for tour requests."""
     telegram_id = str(update.message.from_user.id)
     full_name = update.message.from_user.full_name
 
-    # Check for deep-linking argument (e.g., "/start request_tour_<property_id>")
     args = context.args
     if args and args[0].startswith("request_tour_"):
-        # Extract the property ID from the deep-linking argument
         property_id = args[0].split("_")[2]
         context.user_data['property_id'] = property_id
-
-        # Proceed directly to the tour request workflow
         await update.message.reply_text("Please provide your full name to start scheduling the tour.")
-        return FULL_NAME  # This will indicate to the handler to transition to the FULL_NAME state
+        return FULL_NAME
 
-    # Standard start logic if no deep-linking argument is provided
     if is_user_registered(telegram_id):
         user_details = get_user_details(telegram_id)
         if user_details:
@@ -45,14 +38,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         result = register_user(telegram_id, full_name)
         await update.message.reply_text(result["message"])
 
-
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     telegram_id = str(update.message.from_user.id)
     user_details = get_user_details(telegram_id)
 
     if not user_details:
-        await update.message.reply_text(
-            "Could not retrieve your details. Please make sure you're registered using /start.")
+        await update.message.reply_text("Could not retrieve your details. Please make sure you're registered using /start.")
         return
 
     profile_token = user_details.get("profile_token")
@@ -63,16 +54,13 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Edit Profile", url=web_app_url)]])
     )
 
-
 async def addproperty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Add property command to check if the user can add properties."""
     telegram_id = str(update.message.from_user.id)
     user_details = get_user_details(telegram_id)
 
     if not user_details:
-        await update.message.reply_text(
-            "Could not retrieve your details. Please make sure you're registered using /start."
-        )
+        await update.message.reply_text("Could not retrieve your details. Please make sure you're registered using /start.")
         return
 
     user_type = user_details.get("user_type")
@@ -91,24 +79,19 @@ async def addproperty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     else:
         await update.message.reply_text("User type not recognized. Please contact support for assistance.")
 
-
 async def upgrade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     telegram_id = str(update.message.from_user.id)
     user_details = get_user_details(telegram_id)
 
     if not user_details:
-        await update.message.reply_text(
-            "Could not retrieve your details. Please make sure you're registered using /start."
-        )
+        await update.message.reply_text("Could not retrieve your details. Please make sure you're registered using /start.")
         return
 
     user_type = user_details.get("user_type")
     profile_token = user_details.get("profile_token")
 
     if user_type in ['agent', 'owner']:
-        await update.message.reply_text(
-            "You are already upgraded to your current account type. Use /profile to manage your account."
-        )
+        await update.message.reply_text("You are already upgraded to your current account type. Use /profile to manage your account.")
     elif user_type == 'user':
         web_app_url = f"https://t.me/RealestateRo_Bot/state?startapp=edit-{profile_token}"
         await update.message.reply_text(
@@ -116,58 +99,77 @@ async def upgrade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Edit Profile", url=web_app_url)]])
         )
 
-
-# Update the request_tour function to extract the property ID
 async def request_tour(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Start the tour request process by asking for the user's full name."""
-    # Extract property_id from the command, expecting format /request_tour_<property_id>
     command_parts = update.message.text.split("_")
 
     if len(command_parts) < 2:
-        # If property_id is missing, ask the user to specify it correctly
-        await update.message.reply_text(
-            "Please specify the property ID with the command, like this: /request_tour_<property_id>"
-        )
+        await update.message.reply_text("Please specify the property ID with the command, like this: /request_tour_<property_id>")
         return ConversationHandler.END
 
-    # Save property_id in the user data
     property_id = command_parts[1]
-    context.user_data['property_id'] = property_id  # Store the property_id for later steps
+    context.user_data['property_id'] = property_id
 
     await update.message.reply_text("Please provide your full name.")
     return FULL_NAME
-
 
 async def get_full_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['full_name'] = update.message.text
     await update.message.reply_text("Thanks! Now, please provide your phone number.")
     return PHONE_NUMBER
 
-
 async def get_phone_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['phone_number'] = update.message.text
-    await update.message.reply_text("Great! What date would you like to schedule the tour for?")
+
+    days_keyboard = [
+        [KeyboardButton("Monday"), KeyboardButton("Tuesday")],
+        [KeyboardButton("Wednesday"), KeyboardButton("Thursday")],
+        [KeyboardButton("Friday"), KeyboardButton("Saturday")],
+        [KeyboardButton("Sunday")]
+    ]
+    await update.message.reply_text(
+        "Great! Please select a date (day of the week) for your tour.",
+        reply_markup=ReplyKeyboardMarkup(days_keyboard, one_time_keyboard=True, resize_keyboard=True)
+    )
     return TOUR_DATE
 
-
 async def get_tour_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data['tour_date'] = update.message.text
-    await update.message.reply_text("Finally, at what time would you like to schedule the tour?")
+    tour_date = update.message.text
+    if tour_date not in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
+        await update.message.reply_text("Invalid selection. Please select a valid day of the week.")
+        return TOUR_DATE
+
+    context.user_data['tour_date'] = tour_date
+
+    time_buttons = [
+        [InlineKeyboardButton(str(i), callback_data=str(i)) for i in range(1, 6)],
+        [InlineKeyboardButton(str(i), callback_data=str(i)) for i in range(6, 11)]
+    ]
+    await update.message.reply_text(
+        "Finally, at what time (1-10) would you like to schedule the tour?",
+        reply_markup=InlineKeyboardMarkup(time_buttons)
+    )
     return TOUR_TIME
 
-
 async def get_tour_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data['tour_time'] = int(update.message.text)
-    # Here we send the tour request to the backend
+    await update.callback_query.answer()  # Acknowledge the callback
+
+    tour_time = update.callback_query.data
+    try:
+        tour_time = int(tour_time)
+        if not 1 <= tour_time <= 10:
+            raise ValueError
+    except ValueError:
+        await update.callback_query.answer("Invalid time. Please select a valid time from the options provided.")
+        return TOUR_TIME
+
+    context.user_data['tour_time'] = tour_time
     register_tour_details(context.user_data)
-    await update.message.reply_text("Your tour request has been submitted!")
+    await update.callback_query.edit_message_text("Your tour request has been submitted!")
     return ConversationHandler.END
 
-
 def register_tour_details(user_data: dict):
-    property_id = user_data['property_id']
     data = {
-        "property": property_id,
+        "property": user_data['property_id'],
         "full_name": user_data['full_name'],
         "phone_number": user_data['phone_number'],
         "tour_date": user_data['tour_date'],
@@ -178,45 +180,42 @@ def register_tour_details(user_data: dict):
         response.raise_for_status()
     except requests.HTTPError as e:
         logger.error(f"Failed to submit tour request: {e}")
-        logger.error(f"Response content: {response.text}")  # Log detailed error
+        logger.error(f"Response content: {response.text}")
 
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text("The tour scheduling process has been canceled. Use /start to begin again.")
+    return ConversationHandler.END
 
 async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle unsupported commands during conversation."""
-    await update.message.reply_text("Please follow the instructions to schedule a tour.")
-
+    await update.message.reply_text("Please follow the instructions to schedule a tour or use /cancel to exit.")
 
 async def bot_tele(text):
     application = Application.builder().token(os.getenv('TOKEN')).persistence(persistence).build()
 
-    # Define the conversation handler with states
     tour_request_handler = ConversationHandler(
         entry_points=[
-            MessageHandler(filters.Regex(r'^/request_tour_(\d+)$'), request_tour),  # Regex for deep link
-            CommandHandler("start", start)  # Include start command as an entry point
+            MessageHandler(filters.Regex(r'^/request_tour_(\d+)$'), request_tour),
+            CommandHandler("start", start)
         ],
         states={
             FULL_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_full_name)],
             PHONE_NUMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_phone_number)],
             TOUR_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tour_date)],
-            TOUR_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tour_time)],
+            TOUR_TIME: [CallbackQueryHandler(get_tour_time)]  # Handle callbacks for tour time
         },
-        fallbacks=[MessageHandler(filters.COMMAND, fallback)],
+        fallbacks=[CommandHandler("cancel", cancel), MessageHandler(filters.COMMAND, fallback)],
         persistent=True,
         name="tour_request_handler"
     )
 
-    # Register handlers
     application.add_handler(tour_request_handler)
     application.add_handler(CommandHandler("profile", profile))
     application.add_handler(CommandHandler("addproperty", addproperty))
     application.add_handler(CommandHandler("upgrade", upgrade))
 
-    # Set webhook and start bot
     webhook_url = os.getenv('webhook')
     await application.bot.set_webhook(url=webhook_url)
 
-    # Process updates from text input
     await application.update_queue.put(
         Update.de_json(data=text, bot=application.bot)
     )
@@ -226,4 +225,3 @@ async def bot_tele(text):
         await application.stop()
 
     logger.info("Bot has started and stopped successfully.")
-
