@@ -1,21 +1,41 @@
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, filters, \
+    PicklePersistence
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 import os
 import logging
 from state.tools import register_user, is_user_registered, get_user_details
+import requests
 
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Start command
+# Initialize persistence
+persistence = PicklePersistence(filepath='bot_dat')
+
+# Define states for the conversation flow
+FULL_NAME, PHONE_NUMBER, TOUR_DATE, TOUR_TIME = range(4)
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Start command"""
+    """Start command with optional deep-linking for tour requests."""
     telegram_id = str(update.message.from_user.id)
     full_name = update.message.from_user.full_name
 
+    # Check for deep-linking argument (e.g., "/start request_tour_<property_id>")
+    args = context.args
+    if args and args[0].startswith("request_tour_"):
+        # Extract the property ID from the deep-linking argument
+        property_id = args[0].split("_")[2]
+        context.user_data['property_id'] = property_id
+
+        # Proceed directly to the tour request workflow
+        await update.message.reply_text("Please provide your full name to start scheduling the tour.")
+        return FULL_NAME  # This will indicate to the handler to transition to the FULL_NAME state
+
+    # Standard start logic if no deep-linking argument is provided
     if is_user_registered(telegram_id):
-        user_details = get_user_details(telegram_id)  # Fetch user details securely
+        user_details = get_user_details(telegram_id)
         if user_details:
             profile_token = user_details.get("profile_token")
             await update.message.reply_text(f"Welcome back, {full_name}! Use /profile to view or edit your profile.")
@@ -25,12 +45,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         result = register_user(telegram_id, full_name)
         await update.message.reply_text(result["message"])
 
+
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     telegram_id = str(update.message.from_user.id)
     user_details = get_user_details(telegram_id)
 
     if not user_details:
-        await update.message.reply_text("Could not retrieve your details. Please make sure you're registered using /start.")
+        await update.message.reply_text(
+            "Could not retrieve your details. Please make sure you're registered using /start.")
         return
 
     profile_token = user_details.get("profile_token")
@@ -40,6 +62,7 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "You can edit your profile using the following link (click to open):",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Edit Profile", url=web_app_url)]])
     )
+
 
 async def addproperty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Add property command to check if the user can add properties."""
@@ -68,6 +91,7 @@ async def addproperty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     else:
         await update.message.reply_text("User type not recognized. Please contact support for assistance.")
 
+
 async def upgrade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     telegram_id = str(update.message.from_user.id)
     user_details = get_user_details(telegram_id)
@@ -92,21 +116,107 @@ async def upgrade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Edit Profile", url=web_app_url)]])
         )
 
-# Main bot function
+
+# Update the request_tour function to extract the property ID
+async def request_tour(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Start the tour request process by asking for the user's full name."""
+    # Extract property_id from the command, expecting format /request_tour_<property_id>
+    command_parts = update.message.text.split("_")
+
+    if len(command_parts) < 2:
+        # If property_id is missing, ask the user to specify it correctly
+        await update.message.reply_text(
+            "Please specify the property ID with the command, like this: /request_tour_<property_id>"
+        )
+        return ConversationHandler.END
+
+    # Save property_id in the user data
+    property_id = command_parts[1]
+    context.user_data['property_id'] = property_id  # Store the property_id for later steps
+
+    await update.message.reply_text("Please provide your full name.")
+    return FULL_NAME
+
+
+async def get_full_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['full_name'] = update.message.text
+    await update.message.reply_text("Thanks! Now, please provide your phone number.")
+    return PHONE_NUMBER
+
+
+async def get_phone_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['phone_number'] = update.message.text
+    await update.message.reply_text("Great! What date would you like to schedule the tour for?")
+    return TOUR_DATE
+
+
+async def get_tour_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['tour_date'] = update.message.text
+    await update.message.reply_text("Finally, at what time would you like to schedule the tour?")
+    return TOUR_TIME
+
+
+async def get_tour_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['tour_time'] = int(update.message.text)
+    # Here we send the tour request to the backend
+    register_tour_details(context.user_data)
+    await update.message.reply_text("Your tour request has been submitted!")
+    return ConversationHandler.END
+
+
+def register_tour_details(user_data: dict):
+    property_id = user_data['property_id']
+    data = {
+        "property": property_id,
+        "full_name": user_data['full_name'],
+        "phone_number": user_data['phone_number'],
+        "tour_date": user_data['tour_date'],
+        "tour_time": user_data['tour_time'],
+    }
+    try:
+        response = requests.post("https://estate.4gmobiles.com/api/tours/", json=data)
+        response.raise_for_status()
+    except requests.HTTPError as e:
+        logger.error(f"Failed to submit tour request: {e}")
+        logger.error(f"Response content: {response.text}")  # Log detailed error
+
+
+async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle unsupported commands during conversation."""
+    await update.message.reply_text("Please follow the instructions to schedule a tour.")
+
+
 async def bot_tele(text):
-    application = Application.builder().token(os.getenv('TOKEN')).build()
+    application = Application.builder().token(os.getenv('TOKEN')).persistence(persistence).build()
 
-    logger.info(f"Bot token: {os.getenv('TOKEN')}")
+    # Define the conversation handler with states
+    tour_request_handler = ConversationHandler(
+        entry_points=[
+            MessageHandler(filters.Regex(r'^/request_tour_(\d+)$'), request_tour),  # Regex for deep link
+            CommandHandler("start", start)  # Include start command as an entry point
+        ],
+        states={
+            FULL_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_full_name)],
+            PHONE_NUMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_phone_number)],
+            TOUR_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tour_date)],
+            TOUR_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_tour_time)],
+        },
+        fallbacks=[MessageHandler(filters.COMMAND, fallback)],
+        persistent=True,
+        name="tour_request_handler"
+    )
 
-    application.add_handler(CommandHandler("start", start))
+    # Register handlers
+    application.add_handler(tour_request_handler)
     application.add_handler(CommandHandler("profile", profile))
     application.add_handler(CommandHandler("addproperty", addproperty))
     application.add_handler(CommandHandler("upgrade", upgrade))
 
+    # Set webhook and start bot
     webhook_url = os.getenv('webhook')
-    logger.info(f"Setting webhook to: {webhook_url}")
     await application.bot.set_webhook(url=webhook_url)
 
+    # Process updates from text input
     await application.update_queue.put(
         Update.de_json(data=text, bot=application.bot)
     )
@@ -116,3 +226,4 @@ async def bot_tele(text):
         await application.stop()
 
     logger.info("Bot has started and stopped successfully.")
+

@@ -7,7 +7,7 @@ from .models import Customer
 import telegram
 from .models import Property
 from telegram.constants import ParseMode
-
+from telegram import  InlineKeyboardButton, InlineKeyboardMarkup
 
 @receiver(post_save, sender=Customer)
 def user_type_upgrade(sender, instance, created, **kwargs):
@@ -72,9 +72,14 @@ def post_property_to_telegram(sender, instance, **kwargs):
             f"Contact us for more details or view on the map!\n"
         )
 
-        # Send the message to the channel
+        # Add the inline button
+        keyboard = [[InlineKeyboardButton("Request Tour", url=f"https://t.me/RealestateRo_Bot?start=request_tour_{instance.id}")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        # Send the message with the button to the channel
         async_to_sync(bot.send_message)(
             chat_id="@realestatechan",
             text=message,
             parse_mode=ParseMode.MARKDOWN,
+            reply_markup=reply_markup
         )
