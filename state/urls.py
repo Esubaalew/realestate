@@ -2,13 +2,14 @@ from django.conf import settings
 from django.views.generic import TemplateView
 from rest_framework.routers import DefaultRouter
 from django.conf.urls.static import static
-from .views import CustomerViewSet, PropertyViewSet
+from .views import CustomerViewSet, PropertyViewSet, TourViewSet
 from django.urls import path, include
 from . import views
 
 router = DefaultRouter()
 router.register(r'customers', CustomerViewSet)
 router.register(r'properties', PropertyViewSet)
+router.register(r'tours', TourViewSet)
 urlpatterns = [
 path('api/', include(router.urls)),
 path("", views.index),

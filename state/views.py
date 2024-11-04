@@ -1,6 +1,6 @@
 from rest_framework import viewsets
-from .models import Customer, Property
-from .serializers import CustomerSerializer, PropertySerializer
+from .models import Customer, Property, Tour
+from .serializers import CustomerSerializer, PropertySerializer, TourSerializer
 from django.urls import reverse
 import logging
 import asyncio
@@ -39,6 +39,10 @@ class CustomerViewSet(viewsets.ModelViewSet):
 class PropertyViewSet(viewsets.ModelViewSet):
     queryset = Property.objects.all()
     serializer_class = PropertySerializer
+
+class TourViewSet(viewsets.ModelViewSet):
+    queryset = Tour.objects.all()
+    serializer_class = TourSerializer
 
 
 @csrf_exempt

@@ -77,3 +77,49 @@ class Property(models.Model):
 
     def __str__(self):
         return self.name
+from django.db import models
+
+class Tour(models.Model):
+    class TourTime(models.IntegerChoices):
+        ONE = 1, "1 AM"
+        TWO = 2, "2 AM"
+        THREE = 3, "3 AM"
+        FOUR = 4, "4 AM"
+        FIVE = 5, "5 AM"
+        SIX = 6, "6 AM"
+        SEVEN = 7, "7 AM"
+        EIGHT = 8, "8 AM"
+        NINE = 9, "9 AM"
+        TEN = 10, "10 AM"
+        ELEVEN = 11, "11 AM"
+        TWELVE = 12, "12 PM"
+
+    property = models.ForeignKey(Property, on_delete=models.CASCADE)
+    full_name = models.CharField(max_length=255, default="John Doe")
+    email = models.EmailField(default="mail@state.et")
+    phone_number = models.CharField(max_length=15, default="+251911223344")
+    tour_date = models.CharField(
+        max_length=9,
+        choices=[
+            ("Monday", "Monday"),
+            ("Tuesday", "Tuesday"),
+            ("Wednesday", "Wednesday"),
+            ("Thursday", "Thursday"),
+            ("Friday", "Friday"),
+            ("Saturday", "Saturday"),
+            ("Sunday", "Sunday")
+        ],
+        default="Monday"
+    )
+    tour_time = models.IntegerField(choices=TourTime.choices, default=TourTime.ONE)
+    status = models.CharField(
+        max_length=10,
+        choices=[
+            ('pending', 'Pending'),
+            ('confirmed', 'Confirmed')
+        ],
+        default='pending'
+    )
+
+    def __str__(self):
+        return f"{self.property.name} - {self.full_name}"
