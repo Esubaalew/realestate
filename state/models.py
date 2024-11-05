@@ -77,7 +77,6 @@ class Property(models.Model):
 
     def __str__(self):
         return self.name
-from django.db import models
 
 class Tour(models.Model):
     class TourTime(models.IntegerChoices):
@@ -95,6 +94,8 @@ class Tour(models.Model):
         TWELVE = 12, "12 PM"
 
     property = models.ForeignKey(Property, on_delete=models.CASCADE)
+    telegram_id = models.CharField(max_length=255, default="123456789")
+    username = models.CharField(max_length=255, null=True, blank=True)
     full_name = models.CharField(max_length=255, default="John Doe")
     email = models.EmailField(default="mail@state.et")
     phone_number = models.CharField(max_length=15, default="+251911223344")
@@ -122,4 +123,4 @@ class Tour(models.Model):
     )
 
     def __str__(self):
-        return f"{self.property.name} - {self.full_name}"
+        return f"{self.property.name} - {self.full_name} ({self.telegram_id})"
