@@ -1,5 +1,5 @@
 from rest_framework import viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 
 from .models import Customer, Property, Tour
@@ -221,3 +221,11 @@ def my_properties(request):
 
     return render(request, 'my_properties.html', context)
 
+
+@api_view(['GET'])
+def get_tours_by_telegram_id(request, telegram_id):
+    """Fetch tours associated with a specific user by Telegram ID."""
+    tours = Tour.objects.filter(telegram_id=telegram_id)  # Query using the telegram_id directly
+    serializer = TourSerializer(tours, many=True)
+
+    return Response(serializer.data)

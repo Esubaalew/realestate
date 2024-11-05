@@ -15,7 +15,8 @@ path('api/', include(router.urls)),
 path("", views.index),
 path("user/", views.profile, name="profile"),
     path('add-property/', views.add_property, name='add_property'),
-    path('property-success/', TemplateView.as_view(template_name="success.html"), name='property_success')
+    path('property-success/', TemplateView.as_view(template_name="success.html"), name='property_success'),
+path('api/tours/telegram/<str:telegram_id>/', views.get_tours_by_telegram_id, name='get_tours_by_telegram_id'),
 
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
