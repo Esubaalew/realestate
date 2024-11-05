@@ -32,12 +32,12 @@ def get_user_details(telegram_id: str) -> Any | None:
     return None
 
 
-def get_property_details(property_id: int) -> dict:
+def get_property_details(property_id: int) -> Any | None:
     """Fetch property details by property ID."""
     response = requests.get(f"{PROPERTY_URL}{property_id}/")
     if response.status_code == 200:
-        return response.json()  # Returns property details
-    return None  # Return None if the request failed or property not found
+        return response.json()
+    return None
 
 
 def upgrade_user(telegram_id: str, new_user_type: str) -> dict:
@@ -64,16 +64,16 @@ def get_user_properties(telegram_id: str) -> List[dict]:
     """Fetch properties associated with a specific user by Telegram ID."""
     response = requests.get(f"{API_URL}{telegram_id}/properties/")
     if response.status_code == 200:
-        return response.json()  # Returns a list of properties
-    return []  # Return an empty list if the user has no properties or if the request failed
+        return response.json()
+    return []
 
 
 def get_user_tours(telegram_id: str) -> List[dict]:
     """Fetch tours associated with a specific user by Telegram ID."""
-    response = requests.get(f"{TOUR_URL}telegram/{telegram_id}/")  # Assuming the URL pattern is correct
+    response = requests.get(f"{TOUR_URL}telegram/{telegram_id}/")
     if response.status_code == 200:
-        return response.json()  # Returns a list of tours
-    return []  # Return an empty list if there are no tours or if the request failed
+        return response.json()
+    return []
 
 
 def get_user_favorites(telegram_id: str) -> List[dict]:

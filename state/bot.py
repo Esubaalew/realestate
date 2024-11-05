@@ -216,35 +216,67 @@ def register_tour_details(user_data: dict):
 
 
 async def handle_favorite_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.callback_query.answer()  # Acknowledge the callback
+    await update.callback_query.answer()
     data = update.callback_query.data
 
     if data.startswith("make_favorite_"):
-        property_id = data.split("_")[2]  # Get the property ID from the callback data
+        property_id = int(data.split("_")[2])
         telegram_id = str(update.callback_query.from_user.id)
 
-        # Call the API to add the property to favorites
-        try:
-            response = requests.post("https://estate.4gmobiles.com/api/favorites/", json={
-                "property": property_id,
-                "customer": telegram_id
-            })
-            response.raise_for_status()  # Raise an error for bad responses
 
-            # Send a separate DM confirmation to the user
-            await context.bot.send_message(
-                chat_id=telegram_id,
-                text="🏡 The property has been added to your favorites!"
-            )
+        favorites = get_user_favorites(telegram_id)
 
-        except requests.HTTPError as e:
-            logger.error(f"Failed to add property to favorites: {e}")
 
-            # Send a separate DM error message to the user
-            await context.bot.send_message(
-                chat_id=telegram_id,
-                text="❌ Failed to add to favorites. Please try again later."
-            )
+        logger.info(f"User's favorites for {telegram_id}: {favorites}")
+
+
+        property_details = get_property_details(property_id)
+        property_name = property_details.get('name', 'Unknown Property') if property_details else 'Unknown Property'
+
+
+        favorite_property_ids = [fav['property'] for fav in favorites]
+        logger.info(f"Favorite property IDs: {favorite_property_ids}")
+
+        if property_id in favorite_property_ids:
+            try:
+                response = requests.delete(f"https://estate.4gmobiles.com/api/favorites/{property_id}/", json={
+                    "customer": telegram_id
+                })
+                response.raise_for_status()
+
+
+                await context.bot.send_message(
+                    chat_id=telegram_id,
+                    text=f"❌ The property *{property_name}* has been removed from your favorites."
+                )
+
+            except requests.HTTPError as e:
+                logger.error(f"Failed to remove property from favorites: {e}")
+                await context.bot.send_message(
+                    chat_id=telegram_id,
+                    text="❌ Failed to remove from favorites. Please try again later."
+                )
+
+        else:
+            try:
+                response = requests.post("https://estate.4gmobiles.com/api/favorites/", json={
+                    "property": property_id,
+                    "customer": telegram_id
+                })
+                response.raise_for_status()
+
+
+                await context.bot.send_message(
+                    chat_id=telegram_id,
+                    text=f"🏡 The property *{property_name}* has been added to your favorites!"
+                )
+
+            except requests.HTTPError as e:
+                logger.error(f"Failed to add property to favorites: {e}")
+                await context.bot.send_message(
+                    chat_id=telegram_id,
+                    text="❌ Failed to add to favorites. Please try again later."
+                )
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

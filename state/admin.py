@@ -1,6 +1,6 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin
-from .models import Customer, Property, Tour
+from .models import Customer, Property, Tour, Favorite
 
 admin.site.site_header = "Real Estate Admin Portal"
 admin.site.site_title = "Real Estate Admin"
@@ -11,7 +11,7 @@ class CustomerAdmin(ModelAdmin):
     list_display = ('telegram_id', 'full_name', 'email', 'user_type', 'is_verified', 'created_at')
     list_filter = ('user_type', 'is_verified')
     search_fields = ('telegram_id', 'full_name', 'email')
-    readonly_fields = ('created_at',)
+    readonly_fields = ('created_at', 'telegram_id',)
 
 @admin.register(Property)
 class PropertyAdmin(ModelAdmin):
@@ -48,5 +48,16 @@ class TourAdmin(ModelAdmin):
     fieldsets = (
         (None, {
             'fields': ('property', 'full_name', 'phone_number', 'telegram_id', 'username', 'tour_date', 'tour_time', 'status')
+        }),
+    )
+
+@admin.register(Favorite)
+class FavoriteAdmin(ModelAdmin):
+    list_display = ('customer', 'property')
+    readonly_fields = ('customer', 'property')
+    search_fields = ('customer__full_name', 'property__name')
+    fieldsets = (
+        (None, {
+            'fields': ('customer', 'property')
         }),
     )
