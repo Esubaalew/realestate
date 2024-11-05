@@ -70,6 +70,25 @@ def post_property_to_telegram(sender, instance, **kwargs):
             f"Contact us for more details or view on the map!\n"
         )
 
+        # Send a congratulatory message to the owner
+        congratulatory_message = (
+            f"🎉 Congratulations, {owner.full_name}! 🎉\n"
+            f"Your property *{instance.name}* has been approved and is now live on the channel! 🌟\n"
+            f"View it here: [View on Channel](https://t.me/realestatechan)\n"
+        )
+
+        # Sending the congratulatory message to the property owner
+        owner_message_payload = {
+            'chat_id': owner.telegram_id,
+            'text': congratulatory_message,
+            'parse_mode': ParseMode.MARKDOWN,
+        }
+
+        try:
+            requests.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json=owner_message_payload)
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to send congratulatory message to owner: {e}")
+
         keyboard = [
             [
                 InlineKeyboardButton("Request Tour", url=f"https://t.me/RealestateRo_Bot?start=request_tour_{instance.id}"),
@@ -84,6 +103,7 @@ def post_property_to_telegram(sender, instance, **kwargs):
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=reply_markup
         )
+
 
 @receiver(post_save, sender=Tour)
 def notify_admin_on_tour_request(sender, instance, created, **kwargs):
