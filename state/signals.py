@@ -70,7 +70,12 @@ def post_property_to_telegram(sender, instance, **kwargs):
             f"Contact us for more details or view on the map!\n"
         )
 
-        keyboard = [[InlineKeyboardButton("Request Tour", url=f"https://t.me/RealestateRo_Bot?start=request_tour_{instance.id}")]]
+        keyboard = [
+            [
+                InlineKeyboardButton("Request Tour", url=f"https://t.me/RealestateRo_Bot?start=request_tour_{instance.id}"),
+                InlineKeyboardButton("Make Favorite", callback_data=f"make_favorite_{instance.id}")
+            ]
+        ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         async_to_sync(bot.send_message)(

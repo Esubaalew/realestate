@@ -1,9 +1,8 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
-
-from .models import Customer, Property, Tour
-from .serializers import CustomerSerializer, PropertySerializer, TourSerializer
+from .models import Customer, Property, Tour, Favorite
+from .serializers import CustomerSerializer, PropertySerializer, TourSerializer, FavoriteSerializer
 from django.urls import reverse
 import logging
 import asyncio
@@ -59,6 +58,10 @@ class PropertyViewSet(viewsets.ModelViewSet):
 class TourViewSet(viewsets.ModelViewSet):
     queryset = Tour.objects.all()
     serializer_class = TourSerializer
+
+class FavoriteViewSet(viewsets.ModelViewSet):
+    queryset = Favorite.objects.all()
+    serializer_class = FavoriteSerializer
 
 
 @csrf_exempt
@@ -157,14 +160,14 @@ def add_property(request):
             'name': request.POST.get('name'),
             'for_property': request.POST.get('for_property'),
             'type_property': request.POST.get('type_property'),
-            'usage': request.POST.get('usage'),  # Include usage
-            'country': request.POST.get('country'),  # Include country
-            'region': request.POST.get('region'),  # Include region
-            'city': request.POST.get('city'),  # Include city
-            'subcity_zone': request.POST.get('subcity_zone'),  # Include subcity zone
-            'woreda': request.POST.get('woreda'),  # Include woreda
-            'address': request.POST.get('address'),  # Include address
-            'floor_level': request.POST.get('floor_level'),  # Include floor level
+            'usage': request.POST.get('usage'),
+            'country': request.POST.get('country'),
+            'region': request.POST.get('region'),
+            'city': request.POST.get('city'),
+            'subcity_zone': request.POST.get('subcity_zone'),
+            'woreda': request.POST.get('woreda'),
+            'address': request.POST.get('address'),
+            'floor_level': request.POST.get('floor_level'),
             'total_area': request.POST.get('total_area'),
             'area': request.POST.get('area'),
             'google_map_link': request.POST.get('google_map_link'),
@@ -225,7 +228,7 @@ def my_properties(request):
 @api_view(['GET'])
 def get_tours_by_telegram_id(request, telegram_id):
     """Fetch tours associated with a specific user by Telegram ID."""
-    tours = Tour.objects.filter(telegram_id=telegram_id)  # Query using the telegram_id directly
+    tours = Tour.objects.filter(telegram_id=telegram_id)
     serializer = TourSerializer(tours, many=True)
 
     return Response(serializer.data)

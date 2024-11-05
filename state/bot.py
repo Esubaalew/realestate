@@ -1,6 +1,6 @@
 from telegram.ext import Application, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, filters, \
     PicklePersistence, CallbackQueryHandler
-from telegram.constants import ParseMode
+from telegram.constants import ParseMode, ChatAction
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, \
     ReplyKeyboardRemove
 import os
@@ -215,6 +215,38 @@ def register_tour_details(user_data: dict):
             logger.error(f"Response content: {response.text}")
 
 
+async def handle_favorite_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.callback_query.answer()  # Acknowledge the callback
+    data = update.callback_query.data
+
+    if data.startswith("make_favorite_"):
+        property_id = data.split("_")[2]  # Get the property ID from the callback data
+        telegram_id = str(update.callback_query.from_user.id)
+
+        # Call the API to add the property to favorites
+        try:
+            response = requests.post("https://estate.4gmobiles.com/api/favorites/", json={
+                "property": property_id,
+                "customer": telegram_id
+            })
+            response.raise_for_status()  # Raise an error for bad responses
+
+            # Send a separate DM confirmation to the user
+            await context.bot.send_message(
+                chat_id=telegram_id,
+                text="🏡 The property has been added to your favorites!"
+            )
+
+        except requests.HTTPError as e:
+            logger.error(f"Failed to add property to favorites: {e}")
+
+            # Send a separate DM error message to the user
+            await context.bot.send_message(
+                chat_id=telegram_id,
+                text="❌ Failed to add to favorites. Please try again later."
+            )
+
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("The tour scheduling process has been canceled. Use /start to begin again.")
     return ConversationHandler.END
@@ -228,6 +260,8 @@ async def list_properties(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     """List properties associated with the user."""
     telegram_id = str(update.message.from_user.id)
     properties = get_user_properties(telegram_id)
+
+    await  update.message.chat.send_action(ChatAction.TYPING)
 
     if not properties:
         await update.message.reply_text("🏡 You don't have any properties listed yet! Use /addproperty to add one.")
@@ -247,6 +281,8 @@ async def list_tours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     """List tours associated with the user."""
     telegram_id = str(update.message.from_user.id)
     tours = get_user_tours(telegram_id)
+
+    await  update.message.chat.send_action(ChatAction.TYPING)
 
     if not tours:
         await update.message.reply_text(
@@ -294,6 +330,7 @@ async def bot_tele(text):
     application.add_handler(CommandHandler("upgrade", upgrade))
     application.add_handler(CommandHandler("list_properties", list_properties))
     application.add_handler(CommandHandler("list_tours", list_tours))
+    application.add_handler(CallbackQueryHandler(handle_favorite_request))
 
     webhook_url = os.getenv('webhook')
     await application.bot.set_webhook(url=webhook_url)

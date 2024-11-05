@@ -124,3 +124,14 @@ class Tour(models.Model):
 
     def __str__(self):
         return f"{self.property.name} - {self.full_name} ({self.telegram_id})"
+
+class Favorite(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    property = models.ForeignKey(Property, on_delete=models.CASCADE)
+    telegram_post_url = models.URLField(max_length=255, null=True, blank=True)
+
+    class Meta:
+        unique_together = ('customer', 'property')
+
+    def __str__(self):
+        return f"{self.customer.full_name} - {self.property.name}"
