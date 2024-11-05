@@ -1,4 +1,4 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 
@@ -229,3 +229,20 @@ def get_tours_by_telegram_id(request, telegram_id):
     serializer = TourSerializer(tours, many=True)
 
     return Response(serializer.data)
+
+
+@api_view(['GET'])
+def check_existing_tour(request):
+    telegram_id = request.GET.get('telegram_id')
+    property_id = request.GET.get('property')
+
+    if not telegram_id or not property_id:
+        return Response({'error': 'telegram_id and property are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Filter using property_id (note the use of _id for foreign key)
+    existing_tours = Tour.objects.filter(telegram_id=telegram_id, property_id=property_id)
+
+    if existing_tours.exists():
+        return Response({'exists': True, 'tours': list(existing_tours.values())}, status=status.HTTP_200_OK)
+
+    return Response({'exists': False}, status=status.HTTP_200_OK)
