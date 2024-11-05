@@ -168,6 +168,7 @@ async def get_tour_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     return ConversationHandler.END
 
 def register_tour_details(user_data: dict):
+    global response
     data = {
         "property": user_data['property_id'],
         "full_name": user_data['full_name'],
