@@ -12,7 +12,6 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from .bot import bot_tele
 from django.contrib import messages
-
 from django.http import HttpResponseRedirect
 
 logger = logging.getLogger(__name__)
@@ -41,6 +40,12 @@ class CustomerViewSet(viewsets.ModelViewSet):
         customer = self.get_object()
         properties = Property.objects.filter(owner=customer)
         serializer = PropertySerializer(properties, many=True)
+        return Response(serializer.data)
+    @action(detail=True, methods=['get'])
+    def favorites(self, request, pk=None):
+        customer = self.get_object()
+        favorites = Favorite.objects.filter(customer=customer)
+        serializer = FavoriteSerializer(favorites, many=True)
         return Response(serializer.data)
 
 
