@@ -1,4 +1,7 @@
 from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
 from .models import Customer, Property, Tour
 from .serializers import CustomerSerializer, PropertySerializer, TourSerializer
 from django.urls import reverse
@@ -34,11 +37,24 @@ def index(request):
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
+    @action(detail=True, methods=['get'])
+    def properties(self, request, pk=None):
+        customer = self.get_object()
+        properties = Property.objects.filter(owner=customer)
+        serializer = PropertySerializer(properties, many=True)
+        return Response(serializer.data)
 
 
 class PropertyViewSet(viewsets.ModelViewSet):
     queryset = Property.objects.all()
     serializer_class = PropertySerializer
+    @action(detail=True, methods=['get'])
+    def tours(self, request, pk=None):
+        property_y = self.get_object()
+        tours = Tour.objects.filter(property=property_y)
+        serializer = TourSerializer(tours, many=True)
+        return Response(serializer.data)
+
 
 class TourViewSet(viewsets.ModelViewSet):
     queryset = Tour.objects.all()
