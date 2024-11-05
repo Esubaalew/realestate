@@ -7,7 +7,7 @@ import os
 import logging
 import requests
 from state.tools import register_user, is_user_registered, get_user_details, get_user_properties, get_user_tours, \
-    get_property_details
+    get_property_details, get_user_favorites
 
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -305,6 +305,33 @@ async def list_tours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
 
 
+async def list_favorites(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """List favorite properties associated with the user."""
+    telegram_id = str(update.message.from_user.id)
+    favorites = get_user_favorites(telegram_id)
+
+    await update.message.chat.send_action(ChatAction.TYPING)
+
+    if not favorites:
+        await update.message.reply_text("❤️ You have no favorite properties yet! Use the ❤️ button to add some.")
+        return
+
+    response_text = "🌟 Your Favorite Properties:\n"
+
+    for i, favorite in enumerate(favorites[:20], start=1):  # Limit to 20 favorites
+        # Fetch property details using the property ID
+        property_details = get_property_details(favorite['property'])
+
+        property_name = property_details.get('name', 'Unknown Property') if property_details else 'Unknown Property'
+
+        response_text += f"{i}. 🏡 Property: *{property_name}*\n"
+
+    if len(favorites) > 20:
+        response_text += "\n🔍 *Note:* Only the first 20 favorites are displayed."
+
+    await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
+
+
 async def bot_tele(text):
     application = Application.builder().token(os.getenv('TOKEN')).persistence(persistence).build()
 
@@ -330,6 +357,7 @@ async def bot_tele(text):
     application.add_handler(CommandHandler("upgrade", upgrade))
     application.add_handler(CommandHandler("list_properties", list_properties))
     application.add_handler(CommandHandler("list_tours", list_tours))
+    application.add_handler(CommandHandler("list_favorites", list_favorites))
     application.add_handler(CallbackQueryHandler(handle_favorite_request))
 
     webhook_url = os.getenv('webhook')
