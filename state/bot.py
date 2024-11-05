@@ -1,5 +1,5 @@
 from telegram.ext import Application, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, filters, PicklePersistence, CallbackQueryHandler
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 import os
 import logging
 import requests
@@ -139,6 +139,7 @@ async def get_tour_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         return TOUR_DATE
 
     context.user_data['tour_date'] = tour_date
+    await update.message.reply_text("Thank you! Now, please select a time for the tour.", reply_markup=ReplyKeyboardRemove())
 
     time_buttons = [
         [InlineKeyboardButton(str(i), callback_data=str(i)) for i in range(1, 6)],
@@ -168,7 +169,6 @@ async def get_tour_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     return ConversationHandler.END
 
 def register_tour_details(user_data: dict):
-    global response
     data = {
         "property": user_data['property_id'],
         "full_name": user_data['full_name'],
