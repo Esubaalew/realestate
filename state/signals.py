@@ -7,11 +7,18 @@ from .models import Customer, Property, Tour
 import telegram
 from telegram.constants import ParseMode
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+import logging
+
+# Set up logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 @receiver(post_save, sender=Customer)
 def user_type_upgrade(sender, instance, created, **kwargs):
     if not created and instance.user_type in ['agent', 'owner']:
         send_telegram_message(instance.telegram_id, instance.user_type)
+
 
 def send_telegram_message(telegram_id, user_type):
     token = os.getenv('TOKEN')
@@ -33,6 +40,7 @@ def send_telegram_message(telegram_id, user_type):
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         print(f"Failed to send message: {e}")
+
 
 @receiver(post_save, sender=Property)
 def post_property_to_telegram(sender, instance, **kwargs):
@@ -91,7 +99,8 @@ def post_property_to_telegram(sender, instance, **kwargs):
 
         keyboard = [
             [
-                InlineKeyboardButton("Request Tour", url=f"https://t.me/RealestateRo_Bot?start=request_tour_{instance.id}"),
+                InlineKeyboardButton("Request Tour",
+                                     url=f"https://t.me/RealestateRo_Bot?start=request_tour_{instance.id}"),
                 InlineKeyboardButton("Make Favorite", callback_data=f"make_favorite_{instance.id}")
             ]
         ]
@@ -142,3 +151,34 @@ def notify_admin_on_tour_request(sender, instance, created, **kwargs):
             )
         except telegram.error.TelegramError as e:
             print(f"Failed to send admin notification: {e}")
+
+
+def send_verification_message(telegram_id):
+    token = os.getenv('TOKEN')
+    message = (
+        "🎉 Congratulations! 🎉\n"
+        "Your account has been verified! 🎖️\n"
+        "As a verified client, you are more trusted than regular users. This means you can enjoy enhanced services and opportunities!\n"
+        "Thank you for being a valued part of our community! 🌟"
+    )
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {
+        'chat_id': telegram_id,
+        'text': message,
+        'parse_mode': ParseMode.MARKDOWN,
+    }
+
+    try:
+        response = requests.post(url, json=payload)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to send verification message: {e}")
+
+
+@receiver(post_save, sender=Customer)
+def notify_user_on_verification(sender, instance, created, **kwargs):
+    """Send a congratulatory message to the user when their account is verified."""
+    if not created and instance.is_verified:  # Check if it's not a new instance and is_verified is True
+        send_verification_message(instance.telegram_id)
+
