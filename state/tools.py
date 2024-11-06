@@ -82,3 +82,25 @@ def get_user_favorites(telegram_id: str) -> List[dict]:
     if response.status_code == 200:
         return response.json()
     return []
+
+
+def get_all_users() -> List[dict]:
+    """Fetch all users from the API."""
+    response = requests.get(API_URL)
+    if response.status_code == 200:
+        return response.json()
+    return []
+
+def get_non_user_accounts() -> List[dict]:
+    """Filter out users with a user_type of 'agent' or 'owner'."""
+    all_users = get_all_users()
+    return [user for user in all_users if user.get("user_type") in ["agent", "owner"]]
+
+def get_confirmed_user_properties(telegram_id: str) -> List[dict]:
+    """Fetch confirmed properties associated with a specific user."""
+    user_properties = get_user_properties(telegram_id)
+    confirmed_properties = [
+        get_property_details(prop['id']) for prop in user_properties
+        if get_property_details(prop['id']) and get_property_details(prop['id']).get("status") == "confirmed"
+    ]
+    return confirmed_properties

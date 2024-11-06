@@ -7,7 +7,7 @@ import os
 import logging
 import requests
 from state.tools import register_user, is_user_registered, get_user_details, get_user_properties, get_user_tours, \
-    get_property_details, get_user_favorites
+    get_property_details, get_user_favorites, get_non_user_accounts, get_confirmed_user_properties
 
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -363,6 +363,34 @@ async def list_favorites(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
 
 
+async def list_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """List all registered users with user type 'agent' or 'owner' and their confirmed property count."""
+    await update.message.chat.send_action(ChatAction.TYPING)
+
+    users = get_non_user_accounts()
+    if not users:
+        await update.message.reply_text("There are no registered agents or owners.")
+        return
+
+    response_text = "👥 *Registered Agents and Owners:*\n\n"
+    for i, user in enumerate(users[:20], start=1):  # Limit to 20 users
+        confirmed_properties = get_confirmed_user_properties(user['telegram_id'])
+        property_count = len(confirmed_properties)
+
+        # Include emojis for user type
+        user_type_icon = "👤" if user["user_type"] == "agent" else "🏢"
+
+        response_text += (
+            f"{i}. {user_type_icon} *{user['full_name']}* - Type: *{user['user_type'].capitalize()}*\n"
+            f"   🔑 Confirmed Properties: {property_count}\n"
+        )
+
+    if len(users) > 20:
+        response_text += "\n🔍 *Note:* Only the first 20 users are displayed."
+
+    await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
+
+
 async def bot_tele(text):
     application = Application.builder().token(os.getenv('TOKEN')).persistence(persistence).build()
 
@@ -390,6 +418,7 @@ async def bot_tele(text):
     application.add_handler(CommandHandler("list_tours", list_tours))
     application.add_handler(CommandHandler("list_favorites", list_favorites))
     application.add_handler(CallbackQueryHandler(handle_favorite_request))
+    application.add_handler(CommandHandler("list_users", list_users))
 
     webhook_url = os.getenv('webhook')
     await application.bot.set_webhook(url=webhook_url)
