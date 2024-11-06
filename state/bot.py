@@ -223,27 +223,26 @@ async def handle_favorite_request(update: Update, context: ContextTypes.DEFAULT_
         property_id = int(data.split("_")[2])
         telegram_id = str(update.callback_query.from_user.id)
 
-
+        # Fetch user favorites
         favorites = get_user_favorites(telegram_id)
-
-
         logger.info(f"User's favorites for {telegram_id}: {favorites}")
 
-
+        # Retrieve property details
         property_details = get_property_details(property_id)
         property_name = property_details.get('name', 'Unknown Property') if property_details else 'Unknown Property'
 
+        # Check if the property is already in favorites and get the favorite_id
+        favorite_id = None
+        for favorite in favorites:
+            if favorite['property'] == property_id:
+                favorite_id = favorite['id']  # Retrieve the favorite model ID
+                break
 
-        favorite_property_ids = [fav['property'] for fav in favorites]
-        logger.info(f"Favorite property IDs: {favorite_property_ids}")
-
-        if property_id in favorite_property_ids:
+        # If the property is already a favorite, delete it
+        if favorite_id:
             try:
-                response = requests.delete(f"https://estate.4gmobiles.com/api/favorites/{property_id}/", json={
-                    "customer": telegram_id
-                })
+                response = requests.delete(f"https://estate.4gmobiles.com/api/favorites/{favorite_id}/")
                 response.raise_for_status()
-
 
                 await context.bot.send_message(
                     chat_id=telegram_id,
@@ -257,6 +256,7 @@ async def handle_favorite_request(update: Update, context: ContextTypes.DEFAULT_
                     text="❌ Failed to remove from favorites. Please try again later."
                 )
 
+        # If the property is not a favorite, add it
         else:
             try:
                 response = requests.post("https://estate.4gmobiles.com/api/favorites/", json={
@@ -264,7 +264,6 @@ async def handle_favorite_request(update: Update, context: ContextTypes.DEFAULT_
                     "customer": telegram_id
                 })
                 response.raise_for_status()
-
 
                 await context.bot.send_message(
                     chat_id=telegram_id,
