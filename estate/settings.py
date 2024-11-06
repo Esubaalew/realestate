@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'state',
     'rest_framework',
+    "live.apps.LiveConfig"
 ]
 
 MIDDLEWARE = [
