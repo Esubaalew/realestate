@@ -40,80 +40,193 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         user_details = get_user_details(telegram_id)
         if user_details:
             profile_token = user_details.get("profile_token")
-            await update.message.reply_text(f"Welcome back, {full_name}! Use /profile to view or edit your profile.")
+            await update.message.reply_text(f"Welcome back, {full_name}! Here are some quick options:",
+                                            reply_markup=get_main_menu())
         else:
             await update.message.reply_text("Could not retrieve your details. Please try again later.")
     else:
         result = register_user(telegram_id, full_name)
         await update.message.reply_text(result["message"])
+        await update.message.reply_text("You’re registered! Here are some quick options:", reply_markup=get_main_menu())
+
+
+def get_main_menu():
+    """Generate the main menu inline keyboard with descriptive emojis."""
+    buttons = [
+        [InlineKeyboardButton("➕ Add Property 🏡", callback_data="add_property")],
+        [InlineKeyboardButton("✨ Upgrade Account ⭐", callback_data="upgrade_account")],
+        [InlineKeyboardButton("👤 View Profile 🔍", callback_data="view_profile")],
+        [InlineKeyboardButton("📋 List Properties 📂", callback_data="list_properties")],
+        [InlineKeyboardButton("❤️ List Favorites 💾", callback_data="list_favorites")],
+        [InlineKeyboardButton("📅 List Tours 🗓️", callback_data="list_tours")],
+    ]
+
+    # Arrange buttons in two columns (except the last row)
+    formatted_buttons = []
+    for i in range(0, len(buttons) - 1, 2):
+        formatted_buttons.append(buttons[i] + buttons[i + 1])
+    if len(buttons) % 2 == 1:
+        formatted_buttons.append(buttons[-1])
+
+    return InlineKeyboardMarkup(formatted_buttons)
 
 
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    telegram_id = str(update.message.from_user.id)
+    """Profile command to handle user profile viewing and editing."""
+
+    # Determine the source of the update (callback query or message)
+    if update.callback_query:
+        query = update.callback_query
+        telegram_id = str(query.from_user.id)
+        await query.answer()  # Acknowledge the callback query
+    else:
+        telegram_id = str(update.message.from_user.id)
+
+    # Log and retrieve user details
+    logger.info(f"Profile command triggered for user {telegram_id}")
     user_details = get_user_details(telegram_id)
 
     if not user_details:
-        await update.message.reply_text(
-            "Could not retrieve your details. Please make sure you're registered using /start.")
+        message = (
+            "Could not retrieve your details. Please make sure you're registered using /start."
+        )
+        if update.callback_query:
+            await query.edit_message_text(message)
+        else:
+            await update.message.reply_text(message)
         return
 
+    # Generate the profile edit link
     profile_token = user_details.get("profile_token")
     web_app_url = f"https://t.me/RealestateRo_Bot/state?startapp=edit-{profile_token}"
-
-    await update.message.reply_text(
-        "You can edit your profile using the following link (click to open):",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Edit Profile", url=web_app_url)]])
+    message = (
+        "You can edit your profile using the following link (click to open):"
     )
+    reply_markup = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("Edit Profile", url=web_app_url)]]
+    )
+
+    # Send the response based on the source of the update
+    if update.callback_query:
+        await query.edit_message_text(message, reply_markup=reply_markup)
+    else:
+        await update.message.reply_text(message, reply_markup=reply_markup)
 
 
 async def addproperty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Add property command to check if the user can add properties."""
-    telegram_id = str(update.message.from_user.id)
+    # Determine the source of the update
+    if update.callback_query:
+        query = update.callback_query
+        telegram_id = str(query.from_user.id)
+        await query.answer()  # Acknowledge the callback query
+    else:
+        telegram_id = str(update.message.from_user.id)
+
+    # Log and retrieve user details
+    logger.info(f"addproperty triggered for user {telegram_id}")
     user_details = get_user_details(telegram_id)
 
     if not user_details:
-        await update.message.reply_text(
-            "Could not retrieve your details. Please make sure you're registered using /start.")
+        message = (
+            "Could not retrieve your details. Please make sure you're registered using /start."
+        )
+        if update.callback_query:
+            await query.edit_message_text(message)
+        else:
+            await update.message.reply_text(message)
         return
 
+    # Check user type and profile token
     user_type = user_details.get("user_type")
     profile_token = user_details.get("profile_token")
 
     if user_type == 'user':
-        await update.message.reply_text(
-            "You can only browse or inquire about properties. To add your own property, please upgrade your account by using /upgrade and choosing the Agent or Company option."
+        message = (
+            "You can only browse or inquire about properties. To add your own property, "
+            "please upgrade your account by using /upgrade and choosing the Agent or Company option."
         )
+        if update.callback_query:
+            await query.edit_message_text(message)
+        else:
+            await update.message.reply_text(message)
+
     elif user_type in ['agent', 'owner']:
         web_app_url = f"https://t.me/RealestateRo_Bot/state?startapp=edit-{profile_token}"
-        await update.message.reply_text(
-            "You have permission to add properties! Use the following link to proceed:",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Add Property", url=web_app_url)]])
+        message = (
+            "You have permission to add properties! Use the following link to proceed:"
         )
+        reply_markup = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("Add Property", url=web_app_url)]]
+        )
+        if update.callback_query:
+            await query.edit_message_text(message, reply_markup=reply_markup)
+        else:
+            await update.message.reply_text(message, reply_markup=reply_markup)
+
     else:
-        await update.message.reply_text("User type not recognized. Please contact support for assistance.")
+        message = "User type not recognized. Please contact support for assistance."
+        if update.callback_query:
+            await query.edit_message_text(message)
+        else:
+            await update.message.reply_text(message)
 
 
 async def upgrade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    telegram_id = str(update.message.from_user.id)
+    """Upgrade account command to handle user upgrades and profile management."""
+
+    # Determine the source of the update (callback query or message)
+    if update.callback_query:
+        query = update.callback_query
+        telegram_id = str(query.from_user.id)
+        await query.answer()  # Acknowledge the callback query
+    else:
+        telegram_id = str(update.message.from_user.id)
+
+    # Log and retrieve user details
+    logger.info(f"Upgrade triggered for user {telegram_id}")
     user_details = get_user_details(telegram_id)
 
     if not user_details:
-        await update.message.reply_text(
-            "Could not retrieve your details. Please make sure you're registered using /start.")
+        message = (
+            "Could not retrieve your details. Please make sure you're registered using /start."
+        )
+        if update.callback_query:
+            await query.edit_message_text(message)
+        else:
+            await update.message.reply_text(message)
         return
 
+    # Check user type and profile token
     user_type = user_details.get("user_type")
     profile_token = user_details.get("profile_token")
 
     if user_type in ['agent', 'owner']:
-        await update.message.reply_text(
-            "You are already upgraded to your current account type. Use /profile to manage your account.")
+        message = "You are already upgraded to your current account type. Use /profile to manage your account."
+        if update.callback_query:
+            await query.edit_message_text(message)
+        else:
+            await update.message.reply_text(message)
+
     elif user_type == 'user':
         web_app_url = f"https://t.me/RealestateRo_Bot/state?startapp=edit-{profile_token}"
-        await update.message.reply_text(
-            "Account upgrades are irreversible. To upgrade your account, please visit your profile:",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Edit Profile", url=web_app_url)]])
+        message = (
+            "Account upgrades are irreversible. To upgrade your account, please visit your profile:"
         )
+        reply_markup = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("Edit Profile", url=web_app_url)]]
+        )
+        if update.callback_query:
+            await query.edit_message_text(message, reply_markup=reply_markup)
+        else:
+            await update.message.reply_text(message, reply_markup=reply_markup)
+
+    else:
+        message = "User type not recognized. Please contact support for assistance."
+        if update.callback_query:
+            await query.edit_message_text(message)
+        else:
+            await update.message.reply_text(message)
 
 
 async def request_tour(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -289,15 +402,34 @@ async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def list_properties(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """List properties associated with the user."""
-    telegram_id = str(update.message.from_user.id)
+
+    # Determine the source of the update (callback query or message)
+    if update.callback_query:
+        query = update.callback_query
+        telegram_id = str(query.from_user.id)
+        await query.answer()  # Acknowledge the callback query
+    else:
+        telegram_id = str(update.message.from_user.id)
+
+    # Log the action
+    logger.info(f"List properties triggered for user {telegram_id}")
     properties = get_user_properties(telegram_id)
 
-    await  update.message.chat.send_action(ChatAction.TYPING)
+    # Simulate typing action
+    if update.callback_query:
+        await context.bot.send_chat_action(chat_id=query.message.chat_id, action=ChatAction.TYPING)
+    else:
+        await update.message.chat.send_action(ChatAction.TYPING)
 
     if not properties:
-        await update.message.reply_text("🏡 You don't have any properties listed yet! Use /addproperty to add one.")
+        message = "🏡 You don't have any properties listed yet! Use /addproperty to add one."
+        if update.callback_query:
+            await query.edit_message_text(message)
+        else:
+            await update.message.reply_text(message)
         return
 
+    # Prepare response with a maximum of 20 properties
     response_text = "📝 Here are your properties:\n"
     for i, prop in enumerate(properties[:20], start=1):  # Limit to 20 properties
         response_text += f"{i}. 📍 *{prop['name']}* - Status: *{prop['status']}*\n"
@@ -305,54 +437,103 @@ async def list_properties(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if len(properties) > 20:
         response_text += "\n🔍 *Note:* Only the first 20 properties are displayed."
 
-    await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
+    # Send the response based on the source of the update
+    if update.callback_query:
+        await query.edit_message_text(response_text, parse_mode=ParseMode.MARKDOWN)
+    else:
+        await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
 
 
 async def list_tours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """List tours associated with the user."""
-    telegram_id = str(update.message.from_user.id)
+
+    # Determine the source of the update (callback query or message)
+    if update.callback_query:
+        query = update.callback_query
+        telegram_id = str(query.from_user.id)
+        await query.answer()  # Acknowledge the callback query
+    else:
+        telegram_id = str(update.message.from_user.id)
+
+    # Log the action
+    logger.info(f"List tours triggered for user {telegram_id}")
+
+    # Simulate typing action
+    if update.callback_query:
+        await context.bot.send_chat_action(chat_id=query.message.chat_id, action=ChatAction.TYPING)
+    else:
+        await update.message.chat.send_action(ChatAction.TYPING)
+
+    # Fetch the list of scheduled tours for the user
     tours = get_user_tours(telegram_id)
 
-    await  update.message.chat.send_action(ChatAction.TYPING)
-
     if not tours:
-        await update.message.reply_text(
-            "🚶‍♂️ You have no scheduled tours yet! Use /request_tour_<property_id> to schedule one.")
+        message = "🚶‍♂️ You have no scheduled tours yet! Use /request_tour_<property_id> to schedule one."
+        if update.callback_query:
+            await query.edit_message_text(message)
+        else:
+            await update.message.reply_text(message)
         return
 
+    # Prepare the response with a maximum of 20 tours
     response_text = "📅 Here are your scheduled tours:\n"
 
     for i, tour in enumerate(tours[:20], start=1):  # Limit to 20 tours
         # Fetch property details using the property ID
         property_details = get_property_details(tour['property'])
-
         property_name = property_details.get('name', 'Unknown Property') if property_details else 'Unknown Property'
 
-        response_text += f"{i}. 🏡 Property: *{property_name}* - Date: *{tour['tour_date']}* - Time: *{tour['tour_time']}*\n"
+        response_text += (
+            f"{i}. 🏡 Property: *{property_name}* - Date: *{tour['tour_date']}* - Time: *{tour['tour_time']}*\n"
+        )
 
     if len(tours) > 20:
         response_text += "\n🔍 *Note:* Only the first 20 tours are displayed."
 
-    await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
+    # Send the response based on the source of the update
+    if update.callback_query:
+        await query.edit_message_text(response_text, parse_mode=ParseMode.MARKDOWN)
+    else:
+        await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
 
 
 async def list_favorites(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """List favorite properties associated with the user."""
-    telegram_id = str(update.message.from_user.id)
+
+    # Determine the source of the update (callback query or message)
+    if update.callback_query:
+        query = update.callback_query
+        telegram_id = str(query.from_user.id)
+        await query.answer()  # Acknowledge the callback query
+    else:
+        telegram_id = str(update.message.from_user.id)
+
+    # Log the action
+    logger.info(f"List favorites triggered for user {telegram_id}")
+
+    # Simulate typing action
+    if update.callback_query:
+        await context.bot.send_chat_action(chat_id=query.message.chat_id, action=ChatAction.TYPING)
+    else:
+        await update.message.chat.send_action(ChatAction.TYPING)
+
+    # Fetch the list of favorite properties for the user
     favorites = get_user_favorites(telegram_id)
 
-    await update.message.chat.send_action(ChatAction.TYPING)
-
     if not favorites:
-        await update.message.reply_text("❤️ You have no favorite properties yet! Use the ❤️ button to add some.")
+        message = "❤️ You have no favorite properties yet! Use the ❤️ button to add some."
+        if update.callback_query:
+            await query.edit_message_text(message)
+        else:
+            await update.message.reply_text(message)
         return
 
+    # Prepare the response with a maximum of 20 favorites
     response_text = "🌟 Your Favorite Properties:\n"
 
     for i, favorite in enumerate(favorites[:20], start=1):  # Limit to 20 favorites
         # Fetch property details using the property ID
         property_details = get_property_details(favorite['property'])
-
         property_name = property_details.get('name', 'Unknown Property') if property_details else 'Unknown Property'
 
         response_text += f"{i}. 🏡 Property: *{property_name}*\n"
@@ -360,35 +541,96 @@ async def list_favorites(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if len(favorites) > 20:
         response_text += "\n🔍 *Note:* Only the first 20 favorites are displayed."
 
-    await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
+    # Send the response based on the source of the update
+    if update.callback_query:
+        await query.edit_message_text(response_text, parse_mode=ParseMode.MARKDOWN)
+    else:
+        await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
 
 
-async def list_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """List all registered users with user type 'agent' or 'owner' and their confirmed property count."""
-    await update.message.chat.send_action(ChatAction.TYPING)
+async def list_tours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """List tours associated with the user."""
 
-    users = get_non_user_accounts()
-    if not users:
-        await update.message.reply_text("There are no registered agents or owners.")
+    # Determine the source of the update (callback query or message)
+    if update.callback_query:
+        query = update.callback_query
+        telegram_id = str(query.from_user.id)
+        await query.answer()  # Acknowledge the callback query
+    else:
+        telegram_id = str(update.message.from_user.id)
+
+    # Log the action
+    logger.info(f"List tours triggered for user {telegram_id}")
+
+    # Simulate typing action
+    if update.callback_query:
+        await context.bot.send_chat_action(chat_id=query.message.chat_id, action=ChatAction.TYPING)
+    else:
+        await update.message.chat.send_action(ChatAction.TYPING)
+
+    # Fetch the list of scheduled tours for the user
+    tours = get_user_tours(telegram_id)
+
+    if not tours:
+        message = "🚶‍♂️ You have no scheduled tours yet! Use /request_tour_<property_id> to schedule one."
+        if update.callback_query:
+            await query.edit_message_text(message)
+        else:
+            await update.message.reply_text(message)
         return
 
-    response_text = "👥 *Registered Agents and Owners:*\n\n"
-    for i, user in enumerate(users[:20], start=1):  # Limit to 20 users
-        confirmed_properties = get_confirmed_user_properties(user['telegram_id'])
-        property_count = len(confirmed_properties)
+    # Prepare the response with a maximum of 20 tours
+    response_text = "📅 Here are your scheduled tours:\n"
 
-        # Include emojis for user type
-        user_type_icon = "👤" if user["user_type"] == "agent" else "🏢"
+    for i, tour in enumerate(tours[:20], start=1):  # Limit to 20 tours
+        # Fetch property details using the property ID
+        property_details = get_property_details(tour['property'])
+        property_name = property_details.get('name', 'Unknown Property') if property_details else 'Unknown Property'
 
         response_text += (
-            f"{i}. {user_type_icon} *{user['full_name']}* - Type: *{user['user_type'].capitalize()}*\n"
-            f"   🔑 Confirmed Properties: {property_count}\n"
+            f"{i}. 🏡 Property: *{property_name}* - Date: *{tour['tour_date']}* - Time: *{tour['tour_time']}*\n"
         )
 
-    if len(users) > 20:
-        response_text += "\n🔍 *Note:* Only the first 20 users are displayed."
+    if len(tours) > 20:
+        response_text += "\n🔍 *Note:* Only the first 20 tours are displayed."
 
-    await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
+    # Send the response based on the source of the update
+    if update.callback_query:
+        await query.edit_message_text(response_text, parse_mode=ParseMode.MARKDOWN)
+    else:
+        await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
+
+
+async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()  # Acknowledge the callback
+    data = query.data
+
+    # Log which button was clicked and the user's Telegram ID
+    telegram_id = query.from_user.id
+    logger.info(f"User {telegram_id} clicked on button: {data}")
+
+    if data == "add_property":
+        logger.info(f"Handling 'Add Property' for user {telegram_id}")
+        await addproperty(update, context)
+    elif data == "upgrade_account":
+        logger.info(f"Handling 'Upgrade Account' for user {telegram_id}")
+        await upgrade(update, context)
+    elif data == "view_profile":
+        logger.info(f"Handling 'View Profile' for user {telegram_id}")
+        await profile(update, context)
+    elif data == "list_properties":
+        logger.info(f"Handling 'List Properties' for user {telegram_id}")
+        await list_properties(update, context)
+    elif data == "list_favorites":
+        logger.info(f"Handling 'List Favorites' for user {telegram_id}")
+        await list_favorites(update, context)
+    elif data == "list_tours":
+        logger.info(f"Handling 'List Tours' for user {telegram_id}")
+        await list_tours(update, context)
+    else:
+        logger.warning(f"Unknown action {data} received from user {telegram_id}")
+        await query.edit_message_text("Unknown action. Please try again.")
 
 
 async def bot_tele(text):
@@ -397,7 +639,9 @@ async def bot_tele(text):
     tour_request_handler = ConversationHandler(
         entry_points=[
             MessageHandler(filters.Regex(r'^/request_tour_(\d+)$'), request_tour),
-            CommandHandler("start", start)
+            CommandHandler("start", start),
+            CallbackQueryHandler(handle_main_menu)
+
         ],
         states={
             FULL_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_full_name)],
@@ -419,6 +663,7 @@ async def bot_tele(text):
     application.add_handler(CommandHandler("list_favorites", list_favorites))
     application.add_handler(CallbackQueryHandler(handle_favorite_request))
     application.add_handler(CommandHandler("list_users", list_users))
+    # application.add_handler(CallbackQueryHandler(handle_main_menu))
 
     webhook_url = os.getenv('webhook')
     await application.bot.set_webhook(url=webhook_url)
