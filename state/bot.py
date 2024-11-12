@@ -548,8 +548,8 @@ async def list_favorites(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
 
 
-async def list_tours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """List tours associated with the user."""
+async def list_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """List all registered users with user type 'agent' or 'owner' and their confirmed property count."""
 
     # Determine the source of the update (callback query or message)
     if update.callback_query:
@@ -560,7 +560,7 @@ async def list_tours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         telegram_id = str(update.message.from_user.id)
 
     # Log the action
-    logger.info(f"List tours triggered for user {telegram_id}")
+    logger.info(f"List users triggered for user {telegram_id}")
 
     # Simulate typing action
     if update.callback_query:
@@ -568,31 +568,32 @@ async def list_tours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     else:
         await update.message.chat.send_action(ChatAction.TYPING)
 
-    # Fetch the list of scheduled tours for the user
-    tours = get_user_tours(telegram_id)
-
-    if not tours:
-        message = "🚶‍♂️ You have no scheduled tours yet! Use /request_tour_<property_id> to schedule one."
+    # Fetch the list of non-user accounts (agents and owners)
+    users = get_non_user_accounts()
+    if not users:
+        message = "There are no registered agents or owners."
         if update.callback_query:
             await query.edit_message_text(message)
         else:
             await update.message.reply_text(message)
         return
 
-    # Prepare the response with a maximum of 20 tours
-    response_text = "📅 Here are your scheduled tours:\n"
+    # Prepare response with a maximum of 20 users
+    response_text = "👥 *Registered Agents and Owners:*\n\n"
+    for i, user in enumerate(users[:20], start=1):  # Limit to 20 users
+        confirmed_properties = get_confirmed_user_properties(user['telegram_id'])
+        property_count = len(confirmed_properties)
 
-    for i, tour in enumerate(tours[:20], start=1):  # Limit to 20 tours
-        # Fetch property details using the property ID
-        property_details = get_property_details(tour['property'])
-        property_name = property_details.get('name', 'Unknown Property') if property_details else 'Unknown Property'
+        # Include emojis for user type
+        user_type_icon = "👤" if user["user_type"] == "agent" else "🏢"
 
         response_text += (
-            f"{i}. 🏡 Property: *{property_name}* - Date: *{tour['tour_date']}* - Time: *{tour['tour_time']}*\n"
+            f"{i}. {user_type_icon} *{user['full_name']}* - Type: *{user['user_type'].capitalize()}*\n"
+            f"   🔑 Confirmed Properties: {property_count}\n"
         )
 
-    if len(tours) > 20:
-        response_text += "\n🔍 *Note:* Only the first 20 tours are displayed."
+    if len(users) > 20:
+        response_text += "\n🔍 *Note:* Only the first 20 users are displayed."
 
     # Send the response based on the source of the update
     if update.callback_query:
