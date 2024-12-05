@@ -8,6 +8,7 @@ import logging
 import requests
 from state.tools import register_user, is_user_registered, get_user_details, get_user_properties, get_user_tours, \
     get_property_details, get_user_favorites, get_non_user_accounts, get_confirmed_user_properties
+from live.api import (create_message, get_all_requests, get_request_details, get_all_messages, create_request)
 
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -18,6 +19,14 @@ persistence = PicklePersistence(filepath='bot_dat')
 PAGE_SIZE = 2
 # Define states for the conversation flow
 FULL_NAME, PHONE_NUMBER, TOUR_DATE, TOUR_TIME = range(4)
+
+# conversation states for live_agent
+LIVE_REQUEST, LIVE_PHONE, LIVE_ADDRESS, LIVE_ADDITIONAL_TEXT = range(3, 7)
+
+# Conversation states for the 'respond' command
+RESPOND_TO_REQUEST, RESPONSE_MESSAGE = range(2)
+
+ADMINS = [1648265210]
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -398,6 +407,12 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
+async def leave(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancels and ends the conversation."""
+    await update.message.reply_text("Operation cancelled.")
+    return ConversationHandler.END
+
+
 async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Please follow the instructions to schedule a tour or use /cancel to exit.")
 
@@ -691,12 +706,224 @@ async def handle_language_choice(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text(
             f"You have chosen {user_choice}.", reply_markup=ReplyKeyboardRemove()
         )
+    # else:
+    #     # Invalid choice: Re-prompt the user with the same keyboard
+    #     await update.message.reply_text(
+    #         "Invalid choice. Please select a language using the buttons below."
+    #     )
+    #     await change_language(update, context)
+
+
+# Command handler to fetch all requests for admin
+async def list_requests(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """List all user requests for the admin that have not been responded to."""
+    admin_id = 1648265210  # Replace with your admin ID
+
+    if update.message.from_user.id != admin_id:
+        await update.message.reply_text("You do not have permission to access this command.")
+        return
+
+    try:
+        await update.message.chat.send_action(ChatAction.TYPING)
+        requests = get_all_requests()  # Make sure this function exists and works correctly
+
+        # Filter requests where is_responded is False
+        pending_requests = [req for req in requests if not req['is_responded']]
+
+        if pending_requests:
+            message = "📨 *Unresponded Requests*\n\n"
+            for req in pending_requests:
+                # Escape special characters in the text to comply with MarkdownV2
+                request_id = str(req['id']).replace('.', '\\.').replace('-', '\\-').replace('_', '\\_')
+                user_id = str(req['user_id']).replace('-', '\\-')
+                additional_text = req['additional_text'].replace('.', '\\.').replace('-', '\\-').replace('_', '\\_')
+
+                message += (
+                    f"❓ *Request ID:* {request_id}\n"
+                    f"👤 *User ID:* {user_id}\n"
+                    f"📄 *Additional Text:* {additional_text}\n\n"
+                )
+
+            # Split the message into multiple parts if it exceeds Telegram's character limit (4096 characters)
+            if len(message) > 4096:
+                for i in range(0, len(message), 4096):
+                    await update.message.reply_text(message[i:i + 4096], parse_mode='MarkdownV2')
+            else:
+                await update.message.reply_text(message, parse_mode='MarkdownV2')
+        else:
+            await update.message.reply_text("No pending requests found.")
+
+    except Exception as e:
+        # Log the error and notify the admin
+        await update.message.reply_text(f"An error occurred: {e}")
+
+
+async def live_agent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Start the conversation to request a live agent."""
+
+    if update.callback_query:
+        query = update.callback_query
+        telegram_id = str(query.from_user.id)
+        await query.answer()
     else:
-        # Invalid choice: Re-prompt the user with the same keyboard
-        await update.message.reply_text(
-            "Invalid choice. Please select a language using the buttons below."
+        telegram_id = str(update.message.from_user.id)
+
+    logger.info(f"Live agent request triggered for user {telegram_id}")
+
+    if update.callback_query:
+        await query.edit_message_text("Use /live_agent to connect with a live agent:")
+    else:
+        await update.message.reply_text("Please provide your name to connect with a live agent:")
+
+    return LIVE_REQUEST
+
+
+# Conversation handler for requesting name
+async def live_agent_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle name input for live agent request."""
+    context.user_data['name'] = update.message.text
+    await update.message.reply_text("Please provide your phone number:")
+    return LIVE_PHONE
+
+
+# Conversation handler for requesting phone number
+async def live_agent_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle phone input for live agent request."""
+    context.user_data['phone'] = update.message.text
+    await update.message.reply_text("Please provide your address:")
+    return LIVE_ADDRESS
+
+
+# Conversation handler for requesting address
+async def live_agent_address(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle address input for live agent request."""
+    context.user_data['address'] = update.message.text
+    await update.message.reply_text("Any additional details you would like to provide?")
+    return LIVE_ADDITIONAL_TEXT
+
+
+async def live_agent_complete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle final details and send the request to the admin."""
+    context.user_data['additional_text'] = update.message.text
+    user_id = update.message.from_user.id
+    username = update.message.from_user.username or "No username"
+    name = context.user_data.get('name')
+    phone = context.user_data.get('phone')
+    address = context.user_data.get('address')
+    additional_text = context.user_data.get('additional_text')
+
+    request = create_request(user_id=user_id, username=username, name=name, phone=phone, address=address,
+                             additional_text=additional_text)
+
+    if request:
+        await update.message.reply_text("Your request has been submitted successfully. We will get back to you soon.")
+
+        # Notify the admin
+        admin_id = 1648265210
+        request_details = (
+            f"📨 *New Live Agent Request*\n\n"
+            f"*Username:* {username}\n"
+            f"*Name:* {name}\n"
+            f"*Phone:* {phone}\n"
+            f"*Address:* {address}\n\n"
+            f"📄 *Additional Information:* {additional_text}"
         )
-        await change_language(update, context)
+        await context.bot.send_message(chat_id=admin_id, text=request_details, parse_mode='MarkdownV2')
+
+    else:
+        await update.message.reply_text("There was an error submitting your request. Please try again later.")
+
+    return ConversationHandler.END
+
+
+# Command handler to start the respond process
+async def respond(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Start the process to respond to a request."""
+    admin_id = 1648265210
+
+    if update.message.from_user.id != admin_id:
+        await update.message.reply_text("You do not have permission to access this command.")
+        return ConversationHandler.END
+
+    await update.message.reply_text("Please enter the Request ID of the request you want to respond to:")
+    return RESPOND_TO_REQUEST
+
+
+# Handle the request ID input for responding
+async def respond_request_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle the request ID input and fetch user details."""
+    request_id = update.message.text
+    context.user_data['request_id'] = request_id
+
+    # Fetch the request details using the request_id from the API
+    request_details = get_request_details(request_id)
+
+    if request_details:
+        user_id = request_details['user_id']
+        context.user_data['user_id'] = user_id
+        await update.message.reply_text(
+            f"Request found for user {request_details['name']} (User ID: {user_id}).\nPlease enter your response message:")
+        return RESPONSE_MESSAGE
+    else:
+        await update.message.reply_text("Invalid Request ID. Please try again.")
+        return ConversationHandler.END
+
+
+# Handle the response message input and send the message to the user
+async def send_response(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle the response message and send it to the user."""
+    response_message = update.message.text
+    request_id = context.user_data.get('request_id')
+    user_id = context.user_data.get('user_id')
+    admin_id = update.message.from_user.id
+
+    message_sent = create_message(request_id=request_id, sender_id=admin_id, user_id=user_id, content=response_message)
+
+    await update.message.reply_text(f"Message sent successfully to user {user_id}.")
+
+    try:
+        await context.bot.send_message(chat_id=user_id, text=response_message)
+    except Exception as e:
+        logging.error(f"Failed to send message to user {user_id}: {e}")
+        await update.message.reply_text(f"Failed to send message to user {user_id} on Telegram. Error: {e}")
+
+    return ConversationHandler.END
+
+
+# Handler to process user messages and forward if needed
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle incoming messages from users."""
+    user_id = update.message.from_user.id
+    user_message = update.message.text
+
+    if user_id in ADMINS:
+        await update.message.reply_text(
+            "You are an admin. Use /requests to view pending requests and use /respond to respond to a request.")
+        return
+
+    messages = get_all_messages()
+    print(messages)
+
+    open_message = None
+    for msg in messages:
+        if int(msg['user_id']) == user_id:
+            open_message = msg
+            break
+
+    if open_message:
+        request_id = open_message['request']
+        sender_id = open_message['sender_id']
+
+        create_message(request_id=request_id, sender_id=sender_id, user_id=user_id, content=user_message)
+
+        await context.bot.send_message(
+            chat_id=sender_id,
+            text=f"Message from user {user_id} (Request ID: {request_id}):\n\n{user_message}"
+        )
+        await update.message.reply_text("Your message has been forwarded to the appropriate sender.")
+    else:
+        await update.message.reply_text(
+            "No open messages found for you. Use /live_agent command to make a new request.")
 
 
 async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -730,6 +957,9 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     elif data == "list_tours":
         logger.info(f"Handling 'List Tours' for user {telegram_id}")
         await list_tours(update, context)
+    elif data == "live_agent":
+        logger.info(f"Handling 'Live Agent' for user {telegram_id}")
+        await live_agent(update, context)
     elif data == "change_language":
         logger.info(f"Handling 'Change Language' for user {telegram_id}")
         await change_language(update, context)
@@ -772,18 +1002,51 @@ async def bot_tele(text):
         name="tour_request_handler"
     )
 
+    # Define the conversation handler for live agent request
+    live_agent_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("live_agent", live_agent)],
+        states={
+            LIVE_REQUEST: [MessageHandler(filters.TEXT & ~filters.COMMAND, live_agent_name)],
+            LIVE_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, live_agent_phone)],
+            LIVE_ADDRESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, live_agent_address)],
+            LIVE_ADDITIONAL_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, live_agent_complete)],
+        },
+        fallbacks=[CommandHandler("leave", leave)],
+        persistent=True,  # Ensure persistence is enabled
+        name="live_agent_conversation",
+        conversation_timeout=300  # Optional: Set a timeout for conversations
+    )
+
+    application.add_handler(live_agent_conv_handler)
+
+    # Conversation handler for responding to a user's request
+    respond_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("respond", respond)],
+        states={
+            RESPOND_TO_REQUEST: [MessageHandler(filters.TEXT & ~filters.COMMAND, respond_request_id)],
+            RESPONSE_MESSAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, send_response)],
+        },
+        fallbacks=[CommandHandler("leave", leave)],
+        persistent=True,
+        name="user_request_conversation",
+    )
+
+    # Add the respond conversation handler
+    application.add_handler(respond_conv_handler)
+
     application.add_handler(tour_request_handler)
     application.add_handler(CommandHandler("profile", profile))
     application.add_handler(CommandHandler("addproperty", addproperty))
     application.add_handler(CommandHandler("upgrade", upgrade))
     application.add_handler(CommandHandler("list_properties", list_properties))
+    application.add_handler(CommandHandler("requests", list_requests))
     application.add_handler(CommandHandler("list_tours", list_tours))
     application.add_handler(CommandHandler("list_favorites", list_favorites))
     application.add_handler(CallbackQueryHandler(handle_favorite_request))
     application.add_handler(CommandHandler("list_users", list_users))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_language_choice))
     application.add_handler(CommandHandler("changelang", change_language))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_language_choice))
 
     webhook_url = os.getenv('webhook')
     await application.bot.set_webhook(url=webhook_url)
