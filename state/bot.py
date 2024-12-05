@@ -59,6 +59,8 @@ def get_main_menu():
         [InlineKeyboardButton("📋 List Properties 📂", callback_data="list_properties")],
         [InlineKeyboardButton("❤️ List Favorites 💾", callback_data="list_favorites")],
         [InlineKeyboardButton("📅 List Tours 🗓️", callback_data="list_tours")],
+        [InlineKeyboardButton("💬 Live Agent 📞", callback_data="live_agent")],
+        [InlineKeyboardButton("🌐 Change Language 🌍", callback_data="change_language")],
     ]
 
     # Arrange buttons in two columns (except the last row)
@@ -98,7 +100,7 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     # Generate the profile edit link
     profile_token = user_details.get("profile_token")
-    web_app_url = f"https://t.me/RealestateRo_Bot/state?startapp=edit-{profile_token}"
+    web_app_url = f"https://t.me/mana_etbot/state?startapp=edit-{profile_token}"
     message = (
         "You can edit your profile using the following link (click to open):"
     )
@@ -152,7 +154,7 @@ async def addproperty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             await update.message.reply_text(message)
 
     elif user_type in ['agent', 'owner']:
-        web_app_url = f"https://t.me/RealestateRo_Bot/state?startapp=edit-{profile_token}"
+        web_app_url = f"https://t.me/mana_etbot/state?startapp=edit-{profile_token}"
         message = (
             "You have permission to add properties! Use the following link to proceed:"
         )
@@ -209,7 +211,7 @@ async def upgrade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await update.message.reply_text(message)
 
     elif user_type == 'user':
-        web_app_url = f"https://t.me/RealestateRo_Bot/state?startapp=edit-{profile_token}"
+        web_app_url = f"https://t.me/mana_etbot/state?startapp=edit-{profile_token}"
         message = (
             "Account upgrades are irreversible. To upgrade your account, please visit your profile:"
         )
@@ -602,6 +604,59 @@ async def list_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
 
 
+# Define available languages
+LANGUAGES = ["Amharic", "English"]
+
+
+async def change_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handles the /changelang command to allow users to choose a language."""
+    # Use the same keyboard (ReplyKeyboardMarkup) for both callback queries and messages
+    keyboard = [[LANGUAGES[0], LANGUAGES[1]]]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()  # Acknowledge the callback query
+
+        # Send the same keyboard as a new message or edit the existing message
+        await query.edit_message_text(
+            "Please choose a language:", reply_markup=reply_markup
+        )
+    else:
+        # Send the keyboard in response to a command or message
+        await update.message.reply_text(
+            "Please choose a language:", reply_markup=reply_markup
+        )
+
+
+async def handle_language_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handles the user's language selection."""
+    user_choice = None
+
+    if update.callback_query:
+        # Extract the user's language choice from callback query data (if used)
+        query = update.callback_query
+        await query.answer()
+        user_choice = query.data.replace("lang_", "")  # Extract language choice
+
+    elif update.message:
+        # Extract the user's language choice from the message text
+        user_choice = update.message.text
+
+    # Handle the user's choice
+    if user_choice in LANGUAGES:
+        # Confirm the selection and remove the keyboard
+        await update.message.reply_text(
+            f"You have chosen {user_choice}.", reply_markup=ReplyKeyboardRemove()
+        )
+    else:
+        # Invalid choice: Re-prompt the user with the same keyboard
+        await update.message.reply_text(
+            "Invalid choice. Please select a language using the buttons below."
+        )
+        await change_language(update, context)
+
+
 async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()  # Acknowledge the callback
@@ -611,7 +666,11 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     telegram_id = query.from_user.id
     logger.info(f"User {telegram_id} clicked on button: {data}")
 
-    if data == "add_property":
+    # Route based on the prefix of the callback data
+    if data.startswith("make_favorite_"):
+        logger.info(f"Handling 'Make Favorite' for user {telegram_id}")
+        await handle_favorite_request(update, context)
+    elif data == "add_property":
         logger.info(f"Handling 'Add Property' for user {telegram_id}")
         await addproperty(update, context)
     elif data == "upgrade_account":
@@ -629,6 +688,9 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     elif data == "list_tours":
         logger.info(f"Handling 'List Tours' for user {telegram_id}")
         await list_tours(update, context)
+    elif data == "change_language":
+        logger.info(f"Handling 'Change Language' for user {telegram_id}")
+        await change_language(update, context)
     else:
         logger.warning(f"Unknown action {data} received from user {telegram_id}")
         await query.edit_message_text("Unknown action. Please try again.")
@@ -664,7 +726,9 @@ async def bot_tele(text):
     application.add_handler(CommandHandler("list_favorites", list_favorites))
     application.add_handler(CallbackQueryHandler(handle_favorite_request))
     application.add_handler(CommandHandler("list_users", list_users))
-    # application.add_handler(CallbackQueryHandler(handle_main_menu))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_language_choice))
+    application.add_handler(CommandHandler("changelang", change_language))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_language_choice))
 
     webhook_url = os.getenv('webhook')
     await application.bot.set_webhook(url=webhook_url)
