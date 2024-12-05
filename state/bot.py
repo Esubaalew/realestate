@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize persistence
 persistence = PicklePersistence(filepath='bot_dat')
-
+PAGE_SIZE = 2
 # Define states for the conversation flow
 FULL_NAME, PHONE_NUMBER, TOUR_DATE, TOUR_TIME = range(4)
 
@@ -403,25 +403,24 @@ async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def list_properties(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """List properties associated with the user."""
+    """List properties associated with the user with pagination."""
 
     # Determine the source of the update (callback query or message)
     if update.callback_query:
         query = update.callback_query
         telegram_id = str(query.from_user.id)
         await query.answer()  # Acknowledge the callback query
+        # Get the current page from the callback data or default to page 1
+        current_page = int(query.data.split(":")[1]) if ":" in query.data else 1
     else:
         telegram_id = str(update.message.from_user.id)
+        current_page = 1  # Default to the first page
 
     # Log the action
-    logger.info(f"List properties triggered for user {telegram_id}")
-    properties = get_user_properties(telegram_id)
+    logger.info(f"List properties triggered for user {telegram_id} on page {current_page}")
 
-    # Simulate typing action
-    if update.callback_query:
-        await context.bot.send_chat_action(chat_id=query.message.chat_id, action=ChatAction.TYPING)
-    else:
-        await update.message.chat.send_action(ChatAction.TYPING)
+    # Fetch the user's properties
+    properties = get_user_properties(telegram_id)
 
     if not properties:
         message = "🏡 You don't have any properties listed yet! Use /addproperty to add one."
@@ -431,40 +430,51 @@ async def list_properties(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await update.message.reply_text(message)
         return
 
-    # Prepare response with a maximum of 20 properties
-    response_text = "📝 Here are your properties:\n"
-    for i, prop in enumerate(properties[:20], start=1):  # Limit to 20 properties
+    # Calculate pagination
+    start_index = (current_page - 1) * PAGE_SIZE
+    end_index = start_index + PAGE_SIZE
+    paginated_properties = properties[start_index:end_index]
+
+    # Prepare the response text
+    response_text = "📝 Here are your properties:\n\n"
+    for i, prop in enumerate(paginated_properties, start=start_index + 1):
         response_text += f"{i}. 📍 *{prop['name']}* - Status: *{prop['status']}*\n"
 
-    if len(properties) > 20:
-        response_text += "\n🔍 *Note:* Only the first 20 properties are displayed."
+    # Create pagination buttons
+    buttons = []
+    if current_page > 1:
+        buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"list_properties:{current_page - 1}"))
+    if end_index < len(properties):
+        buttons.append(InlineKeyboardButton("➡️ Next", callback_data=f"list_properties:{current_page + 1}"))
+    keyboard = InlineKeyboardMarkup([buttons]) if buttons else None
 
-    # Send the response based on the source of the update
+    # Send the response
     if update.callback_query:
-        await query.edit_message_text(response_text, parse_mode=ParseMode.MARKDOWN)
+        await query.edit_message_text(
+            response_text, parse_mode=ParseMode.MARKDOWN, reply_markup=keyboard
+        )
     else:
-        await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text(
+            response_text, parse_mode=ParseMode.MARKDOWN, reply_markup=keyboard
+        )
 
 
 async def list_tours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """List tours associated with the user."""
+    """List tours associated with the user with pagination."""
 
     # Determine the source of the update (callback query or message)
     if update.callback_query:
         query = update.callback_query
         telegram_id = str(query.from_user.id)
         await query.answer()  # Acknowledge the callback query
+        # Get the current page from the callback data or default to page 1
+        current_page = int(query.data.split(":")[1]) if ":" in query.data else 1
     else:
         telegram_id = str(update.message.from_user.id)
+        current_page = 1  # Default to the first page
 
     # Log the action
-    logger.info(f"List tours triggered for user {telegram_id}")
-
-    # Simulate typing action
-    if update.callback_query:
-        await context.bot.send_chat_action(chat_id=query.message.chat_id, action=ChatAction.TYPING)
-    else:
-        await update.message.chat.send_action(ChatAction.TYPING)
+    logger.info(f"List tours triggered for user {telegram_id} on page {current_page}")
 
     # Fetch the list of scheduled tours for the user
     tours = get_user_tours(telegram_id)
@@ -477,10 +487,14 @@ async def list_tours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             await update.message.reply_text(message)
         return
 
-    # Prepare the response with a maximum of 20 tours
-    response_text = "📅 Here are your scheduled tours:\n"
+    # Calculate pagination
+    start_index = (current_page - 1) * PAGE_SIZE
+    end_index = start_index + PAGE_SIZE
+    paginated_tours = tours[start_index:end_index]
 
-    for i, tour in enumerate(tours[:20], start=1):  # Limit to 20 tours
+    # Prepare the response text
+    response_text = "📅 Here are your scheduled tours:\n\n"
+    for i, tour in enumerate(paginated_tours, start=start_index + 1):
         # Fetch property details using the property ID
         property_details = get_property_details(tour['property'])
         property_name = property_details.get('name', 'Unknown Property') if property_details else 'Unknown Property'
@@ -489,35 +503,41 @@ async def list_tours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"{i}. 🏡 Property: *{property_name}* - Date: *{tour['tour_date']}* - Time: *{tour['tour_time']}*\n"
         )
 
-    if len(tours) > 20:
-        response_text += "\n🔍 *Note:* Only the first 20 tours are displayed."
+    # Create pagination buttons
+    buttons = []
+    if current_page > 1:
+        buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"list_tours:{current_page - 1}"))
+    if end_index < len(tours):
+        buttons.append(InlineKeyboardButton("➡️ Next", callback_data=f"list_tours:{current_page + 1}"))
+    keyboard = InlineKeyboardMarkup([buttons]) if buttons else None
 
-    # Send the response based on the source of the update
+    # Send the response
     if update.callback_query:
-        await query.edit_message_text(response_text, parse_mode=ParseMode.MARKDOWN)
+        await query.edit_message_text(
+            response_text, parse_mode=ParseMode.MARKDOWN, reply_markup=keyboard
+        )
     else:
-        await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text(
+            response_text, parse_mode=ParseMode.MARKDOWN, reply_markup=keyboard
+        )
 
 
 async def list_favorites(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """List favorite properties associated with the user."""
+    """List favorite properties associated with the user with pagination."""
 
     # Determine the source of the update (callback query or message)
     if update.callback_query:
         query = update.callback_query
         telegram_id = str(query.from_user.id)
         await query.answer()  # Acknowledge the callback query
+        # Get the current page from the callback data or default to page 1
+        current_page = int(query.data.split(":")[1]) if ":" in query.data else 1
     else:
         telegram_id = str(update.message.from_user.id)
+        current_page = 1  # Default to the first page
 
     # Log the action
-    logger.info(f"List favorites triggered for user {telegram_id}")
-
-    # Simulate typing action
-    if update.callback_query:
-        await context.bot.send_chat_action(chat_id=query.message.chat_id, action=ChatAction.TYPING)
-    else:
-        await update.message.chat.send_action(ChatAction.TYPING)
+    logger.info(f"List favorites triggered for user {telegram_id} on page {current_page}")
 
     # Fetch the list of favorite properties for the user
     favorites = get_user_favorites(telegram_id)
@@ -530,48 +550,58 @@ async def list_favorites(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await update.message.reply_text(message)
         return
 
-    # Prepare the response with a maximum of 20 favorites
-    response_text = "🌟 Your Favorite Properties:\n"
+    # Calculate pagination
+    start_index = (current_page - 1) * PAGE_SIZE
+    end_index = start_index + PAGE_SIZE
+    paginated_favorites = favorites[start_index:end_index]
 
-    for i, favorite in enumerate(favorites[:20], start=1):  # Limit to 20 favorites
+    # Prepare the response text
+    response_text = "🌟 Your Favorite Properties:\n\n"
+    for i, favorite in enumerate(paginated_favorites, start=start_index + 1):
         # Fetch property details using the property ID
         property_details = get_property_details(favorite['property'])
         property_name = property_details.get('name', 'Unknown Property') if property_details else 'Unknown Property'
 
         response_text += f"{i}. 🏡 Property: *{property_name}*\n"
 
-    if len(favorites) > 20:
-        response_text += "\n🔍 *Note:* Only the first 20 favorites are displayed."
+    # Create pagination buttons
+    buttons = []
+    if current_page > 1:
+        buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"list_favorites:{current_page - 1}"))
+    if end_index < len(favorites):
+        buttons.append(InlineKeyboardButton("➡️ Next", callback_data=f"list_favorites:{current_page + 1}"))
+    keyboard = InlineKeyboardMarkup([buttons]) if buttons else None
 
-    # Send the response based on the source of the update
+    # Send the response
     if update.callback_query:
-        await query.edit_message_text(response_text, parse_mode=ParseMode.MARKDOWN)
+        await query.edit_message_text(
+            response_text, parse_mode=ParseMode.MARKDOWN, reply_markup=keyboard
+        )
     else:
-        await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text(
+            response_text, parse_mode=ParseMode.MARKDOWN, reply_markup=keyboard
+        )
 
 
 async def list_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """List all registered users with user type 'agent' or 'owner' and their confirmed property count."""
+    """List all registered users with pagination."""
 
-    # Determine the source of the update (callback query or message)
+    # Determine if update is from a callback query or message
     if update.callback_query:
         query = update.callback_query
         telegram_id = str(query.from_user.id)
         await query.answer()  # Acknowledge the callback query
+        # Get the current page from the callback data or default to page 1
+        current_page = int(query.data.split(":")[1]) if ":" in query.data else 1
     else:
         telegram_id = str(update.message.from_user.id)
+        current_page = 1  # Default to the first page
 
-    # Log the action
-    logger.info(f"List users triggered for user {telegram_id}")
+    logger.info(f"List users triggered for user {telegram_id} on page {current_page}")
 
-    # Simulate typing action
-    if update.callback_query:
-        await context.bot.send_chat_action(chat_id=query.message.chat_id, action=ChatAction.TYPING)
-    else:
-        await update.message.chat.send_action(ChatAction.TYPING)
-
-    # Fetch the list of non-user accounts (agents and owners)
+    # Fetch all users
     users = get_non_user_accounts()
+    total_users = len(users)
     if not users:
         message = "There are no registered agents or owners."
         if update.callback_query:
@@ -580,28 +610,40 @@ async def list_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             await update.message.reply_text(message)
         return
 
-    # Prepare response with a maximum of 20 users
+    # Calculate pagination
+    start_index = (current_page - 1) * PAGE_SIZE
+    end_index = start_index + PAGE_SIZE
+    paginated_users = users[start_index:end_index]
+
+    # Prepare the response text
     response_text = "👥 *Registered Agents and Owners:*\n\n"
-    for i, user in enumerate(users[:20], start=1):  # Limit to 20 users
+    for i, user in enumerate(paginated_users, start=start_index + 1):
         confirmed_properties = get_confirmed_user_properties(user['telegram_id'])
         property_count = len(confirmed_properties)
 
-        # Include emojis for user type
         user_type_icon = "👤" if user["user_type"] == "agent" else "🏢"
-
         response_text += (
             f"{i}. {user_type_icon} *{user['full_name']}* - Type: *{user['user_type'].capitalize()}*\n"
             f"   🔑 Confirmed Properties: {property_count}\n"
         )
 
-    if len(users) > 20:
-        response_text += "\n🔍 *Note:* Only the first 20 users are displayed."
+    # Create pagination buttons
+    buttons = []
+    if current_page > 1:
+        buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"list_users:{current_page - 1}"))
+    if end_index < total_users:
+        buttons.append(InlineKeyboardButton("➡️ Next", callback_data=f"list_users:{current_page + 1}"))
+    keyboard = InlineKeyboardMarkup([buttons]) if buttons else None
 
-    # Send the response based on the source of the update
+    # Send the response
     if update.callback_query:
-        await query.edit_message_text(response_text, parse_mode=ParseMode.MARKDOWN)
+        await query.edit_message_text(
+            response_text, parse_mode=ParseMode.MARKDOWN, reply_markup=keyboard
+        )
     else:
-        await update.message.reply_text(response_text, parse_mode=ParseMode.MARKDOWN)
+        await update.message.reply_text(
+            response_text, parse_mode=ParseMode.MARKDOWN, reply_markup=keyboard
+        )
 
 
 # Define available languages
@@ -691,6 +733,19 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     elif data == "change_language":
         logger.info(f"Handling 'Change Language' for user {telegram_id}")
         await change_language(update, context)
+    elif data.startswith("list_users"):
+        logger.info(f"Handling pagination for 'List Users' for user {telegram_id}")
+        await list_users(update, context)
+    elif data.startswith("list_properties"):
+        logger.info(f"Handling pagination for 'List Properties' for user {telegram_id}")
+        await list_properties(update, context)
+    elif data.startswith("list_tours"):
+        logger.info(f"Handling pagination for 'List Tours' for user {telegram_id}")
+        await list_tours(update, context)
+    elif data.startswith("list_favorites"):
+        logger.info(f"Handling pagination for 'List Favorites' for user {telegram_id}")
+        await list_favorites(update, context)
+
     else:
         logger.warning(f"Unknown action {data} received from user {telegram_id}")
         await query.edit_message_text("Unknown action. Please try again.")
